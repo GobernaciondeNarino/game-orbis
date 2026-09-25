@@ -123,8 +123,9 @@ export class SolarSystem {
     this.galaxia = new Galaxy(this.gestor, { textura: 'wj-content/assets/textures/estrellas.jpg' });
     this.grupo.add(this.galaxia.objeto);
 
-    // 6. Destello del Sol. El halo se genera en un lienzo, sin archivos.
-    this.sol.anadirDestello();
+    // 6. Destello del Sol. El halo se genera en un lienzo, sin archivos. Los
+    // cuerpos seleccionables son también los que pueden taparlo.
+    this.sol.anadirDestello(() => this.seleccionables);
 
     log(
       `Sistema construido: ${this.cuerpos.size} cuerpos, ` +
@@ -133,12 +134,16 @@ export class SolarSystem {
   }
 
   _anadirAnillos(cuerpo, config) {
-    const anillos = new Rings(config, cuerpo.radio, this.gestor);
+    // El albedo del planeta, del catálogo, decide cuánta luz devuelve a sus
+    // propios anillos.
+    const anillos = new Rings(config, cuerpo.radio, this.gestor, cuerpo.datos.fisica?.albedoGeometrico ?? null);
     // Los anillos siguen el ecuador del planeta, así que cuelgan del nodo
     // inclinado: los de Urano quedan casi verticales, como en la realidad.
     cuerpo.ejeInclinado.add(anillos.objeto);
     cuerpo.capas.push(anillos);
     this.anillos.push(anillos);
+    // Y la sombra en sentido contrario: los anillos sobre el planeta.
+    cuerpo.recibirSombraDeAnillos(anillos);
   }
 
   /**
@@ -236,12 +241,20 @@ export class SolarSystem {
     // reconstruir sus cinco mil instancias, así que se ocultan y se declara.
     for (const cinturon of this.cinturones) cinturon.establecerVisibilidad(modo !== 'real');
 
+    // El disco de la Vía Láctea tampoco tiene sitio en escala real: su centro
+    // está a 4.950 unidades, que ahí son cinco millones de kilómetros —dentro
+    // de la órbita de Mercurio—, y a su distancia de verdad quedaría billones
+    // de veces más allá del plano lejano de la cámara. Como en escala real la
+    // cámara está casi siempre a más de 700 unidades, antes aparecía pegado al
+    // Sol. Se oculta, y se dice.
+    this.galaxia.establecerDiscoPermitido(modo !== 'real');
+
     return {
       modo,
       aviso: modo === 'real'
         ? 'Escala real: una unidad son 1.000 km. Las distancias son enormes y la ' +
           'mayor parte de la escena está vacía, que es justo como es el Sistema Solar. ' +
-          'Los cinturones quedan ocultos en este modo.'
+          'Los cinturones y el disco de la Vía Láctea quedan ocultos en este modo.'
         : 'Escala didáctica: tamaños y distancias comprimidos para poder navegar.',
     };
   }
