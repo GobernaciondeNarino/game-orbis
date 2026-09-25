@@ -123,8 +123,9 @@ export class SolarSystem {
     this.galaxia = new Galaxy(this.gestor, { textura: 'wj-content/assets/textures/estrellas.jpg' });
     this.grupo.add(this.galaxia.objeto);
 
-    // 6. Destello del Sol. El halo se genera en un lienzo, sin archivos.
-    this.sol.anadirDestello();
+    // 6. Destello del Sol. El halo se genera en un lienzo, sin archivos. Los
+    // cuerpos seleccionables son también los que pueden taparlo.
+    this.sol.anadirDestello(() => this.seleccionables);
 
     log(
       `Sistema construido: ${this.cuerpos.size} cuerpos, ` +
