@@ -36,6 +36,14 @@ const EXTENSION_CORONA = 5.0;
  * eje óptico (0 = sobre el Sol, 1 = al otro lado del centro de la pantalla) y
  * color. Son los mismos que tenía el Lensflare de three.js al que sustituye.
  */
+/**
+ * Intensidad del destello. El Lensflare de antes, con su prueba de visibilidad
+ * rota, en la vista general casi nunca llegaba a verse; a pleno brillo, su
+ * halo de 340 píxeles se come el disco del Sol, que ahí mide veinte. Al 30 %
+ * se lee como una fuente de luz sin taparla.
+ */
+const INTENSIDAD_DESTELLO = 0.3;
+
 const ELEMENTOS_DESTELLO = [
   { tamano: 340, distancia: 0, color: 0xffe0b0 },
   { tamano: 42, distancia: 0.42, color: 0xffc078 },
@@ -880,7 +888,7 @@ export class Sun extends CelestialBody {
         aux.pantalla.y - aux.pantalla.y * 2 * distancia,
       );
       u.escala.value.set((tamano / alto) * (alto / ancho), tamano / alto);
-      u.visibilidad.value = this._visibilidadDestello;
+      u.visibilidad.value = this._visibilidadDestello * INTENSIDAD_DESTELLO;
     }
   }
 
