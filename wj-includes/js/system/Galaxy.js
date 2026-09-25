@@ -505,6 +505,7 @@ export class Galaxy {
     this._opacidad = 0;
     this._tiempo = 0;
     this._segundos = 0;
+    this._discoPermitido = true;
 
     this.disco = this._crearDisco(particulas, polvo, semilla);
     this.grupo.add(this.disco);
@@ -808,7 +809,7 @@ export class Galaxy {
    * quieto, sin centelleo, pero entero.
    */
   actualizarSegunDistancia(distanciaCamara, delta) {
-    const objetivo = distanciaCamara > 700 ? 1 : 0;
+    const objetivo = this._discoPermitido && distanciaCamara > 700 ? 1 : 0;
     const actual = this._opacidad;
     const nueva = actual + (objetivo * 0.75 - actual) * Math.min(1, delta * 2.2);
 
@@ -825,6 +826,14 @@ export class Galaxy {
       material.uniforms.tiempo.value = this._tiempo;
       if (material.uniforms.segundos) material.uniforms.segundos.value = this._segundos;
     }
+  }
+
+  /**
+   * Permite o impide que el disco aparezca. En escala real no cabe (ver
+   * SolarSystem.establecerEscala): se funde hacia fuera como al acercarse.
+   */
+  establecerDiscoPermitido(permitido) {
+    this._discoPermitido = Boolean(permitido);
   }
 
   /** Sustituye el cielo por su versión completa, ya con la escena en marcha. */

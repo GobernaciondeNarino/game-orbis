@@ -256,6 +256,15 @@ console.log('\n▸ Aparece y desaparece con la distancia, y el reloj solo corre 
   for (let i = 0; i < 20; i++) galaxia.actualizarSegunDistancia(100, 0.1);
   comprobar('oculto, el reloj no avanza (el Sol sigue en Orión al volver)',
     galaxia.materialEstrellas.uniforms.tiempo.value, quieto);
+
+  // En escala real el centro galáctico caería dentro de la órbita de
+  // Mercurio: el disco no debe aparecer por mucho que se aleje la cámara.
+  galaxia.establecerDiscoPermitido(false);
+  for (let i = 0; i < 200; i++) galaxia.actualizarSegunDistancia(3_000_000, 0.05);
+  comprobar('en escala real no aparece aunque la cámara esté lejísimos', galaxia.disco.visible, false);
+  galaxia.establecerDiscoPermitido(true);
+  const sistema = leer('wj-includes/js/system/SolarSystem.js');
+  comprobar('y el cambio de escala lo pide', /this\.galaxia\.establecerDiscoPermitido\(modo !== 'real'\)/.test(sistema), true);
 }
 
 console.log('\n▸ Contrato: SIMULACIÓN, estrellas redondas y todo se libera');
