@@ -134,12 +134,16 @@ export class SolarSystem {
   }
 
   _anadirAnillos(cuerpo, config) {
-    const anillos = new Rings(config, cuerpo.radio, this.gestor);
+    // El albedo del planeta, del catálogo, decide cuánta luz devuelve a sus
+    // propios anillos.
+    const anillos = new Rings(config, cuerpo.radio, this.gestor, cuerpo.datos.fisica?.albedoGeometrico ?? null);
     // Los anillos siguen el ecuador del planeta, así que cuelgan del nodo
     // inclinado: los de Urano quedan casi verticales, como en la realidad.
     cuerpo.ejeInclinado.add(anillos.objeto);
     cuerpo.capas.push(anillos);
     this.anillos.push(anillos);
+    // Y la sombra en sentido contrario: los anillos sobre el planeta.
+    cuerpo.recibirSombraDeAnillos(anillos);
   }
 
   /**

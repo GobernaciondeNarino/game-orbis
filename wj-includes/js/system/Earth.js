@@ -6,10 +6,14 @@
  *   · el lado nocturno no es negro: se ven las luces de las ciudades, y eso
  *     no se puede hacer con `emissiveMap`, que ilumina también la cara diurna;
  *   · las nubes giran a distinta velocidad que la superficie;
- *   · el borde del disco tiene el halo azul de la atmósfera.
+ *   · el borde del disco se tiñe del azul de la atmósfera.
  *
  * Las tres texturas son mapas reales (Solar System Scope, CC BY 4.0). El halo
- * atmosférico sí es un efecto calculado, no una fotografía.
+ * atmosférico sí es un efecto calculado, no una fotografía. El de FUERA del
+ * disco ya no es propio: es el mismo de todos los cuerpos con atmósfera
+ * (atmosfera.js), con el color y el grosor que la Tierra tenía. Lo que se
+ * queda aquí es el tinte azul DENTRO del disco, cerca del limbo, que solo la
+ * Tierra dibuja porque solo ella tiene un shader de superficie propio.
  */
 
 import * as THREE from 'three';
@@ -88,7 +92,7 @@ export class Earth extends CelestialBody {
     this.malla.material = this._crearMaterial();
 
     if (datos.render.texturaNubes) this._anadirNubes(datos.render.texturaNubes);
-    this._anadirAtmosfera();
+    // El halo exterior lo pone CelestialBody con atmosfera.js.
   }
 
   _crearMaterial() {
@@ -137,50 +141,6 @@ export class Earth extends CelestialBody {
 
     this.nubes = new THREE.Mesh(geometria, material);
     this.ejeInclinado.add(this.nubes);
-  }
-
-  /** Cascarón exterior que dibuja el borde azul de la atmósfera. */
-  _anadirAtmosfera() {
-    const geometria = this.gestor.registrar(new THREE.SphereGeometry(this.radio * 1.035, 48, 32));
-    const material = this.gestor.registrar(
-      new THREE.ShaderMaterial({
-        uniforms: { color: { value: new THREE.Color('#4a90e2') } },
-        vertexShader: /* glsl */ `
-          #include <common>
-          #include <logdepthbuf_pars_vertex>
-          varying vec3 vNormal;
-          varying vec3 vPosicionMundo;
-          void main() {
-            vNormal = normalize(mat3(modelMatrix) * normal);
-            vec4 mundo = modelMatrix * vec4(position, 1.0);
-            vPosicionMundo = mundo.xyz;
-            gl_Position = projectionMatrix * viewMatrix * mundo;
-            #include <logdepthbuf_vertex>
-          }
-        `,
-        fragmentShader: /* glsl */ `
-          #include <logdepthbuf_pars_fragment>
-          uniform vec3 color;
-          varying vec3 vNormal;
-          varying vec3 vPosicionMundo;
-          void main() {
-            #include <logdepthbuf_fragment>
-            vec3 haciaCamara = normalize(cameraPosition - vPosicionMundo);
-            float limbo = pow(1.0 - max(0.0, dot(normalize(vNormal), haciaCamara)), 3.0);
-            // Solo brilla del lado que mira al Sol, que está en el origen.
-            float iluminacion = max(0.0, dot(normalize(vNormal), normalize(-vPosicionMundo)));
-            gl_FragColor = vec4(color, limbo * iluminacion * 0.9);
-          }
-        `,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        side: THREE.BackSide,
-        depthWrite: false,
-      }),
-    );
-
-    this.atmosfera = new THREE.Mesh(geometria, material);
-    this.ejeInclinado.add(this.atmosfera);
   }
 
   /** Sustituye las tres capas por sus versiones completas. */
@@ -232,14 +192,15 @@ export class Earth extends CelestialBody {
   }
 
   destruir() {
-    for (const capa of [this.nubes, this.atmosfera]) {
-      if (!capa) continue;
-      capa.geometry.dispose();
-      capa.material.map?.dispose();
-      capa.material.alphaMap?.dispose();
-      capa.material.dispose();
-      capa.removeFromParent();
+    if (this.nubes) {
+      this.nubes.geometry.dispose();
+      // Mapa y alphaMap son la misma textura: se libera una vez.
+      this.nubes.material.map?.dispose();
+      if (this.nubes.material.alphaMap !== this.nubes.material.map) this.nubes.material.alphaMap?.dispose();
+      this.nubes.material.dispose();
+      this.nubes.removeFromParent();
     }
+    // La atmósfera está en this.capas: la libera la clase base.
     super.destruir();
   }
 }
