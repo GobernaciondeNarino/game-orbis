@@ -6,7 +6,8 @@
  *
  *  Este es el ÚNICO archivo que hay que tocar para configurar ORBIS en el
  *  servidor. Aquí van la clave de ElevenLabs, el código de la voz, la clave de
- *  Anthropic para el asistente y los topes de gasto.
+ *  Anthropic para el asistente, la de Gemini para redactar desde el panel,
+ *  Google Analytics y los topes de gasto.
  *
  *  ──────────────────────────────────────────────────────────────────────────
  *  CÓMO USARLO
@@ -208,6 +209,59 @@ return [
      * peor, pero las herramientas y los datos son exactamente los mismos.
      */
     'ORBIS_MODELO' => '',
+
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  2 bis. GOOGLE AI STUDIO (GEMINI) — herramienta EDITORIAL del panel
+    //     Redacta borradores de narraciones a partir del conocimiento de cada
+    //     cuerpo y extrae datos de un texto de fuente. NO habla con los
+    //     visitantes: sus términos exigen mayoría de edad y prohíben usarlo en
+    //     un sitio al que probablemente accedan menores de 18
+    //     (https://ai.google.dev/gemini-api/terms). Detalle en lib/Gemini.php.
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Clave de Google AI Studio (aistudio.google.com → Get API key).
+     * Desde septiembre de 2026 Google rechaza las claves «estándar»: tienen que
+     * ser «auth keys», que es como nacen las que se crean hoy en AI Studio.
+     */
+    'GEMINI_API_KEY' => '',
+
+    /** Modelo. Vacío = gemini-3.8-flash. Aquí los identificadores SÍ llevan puntos. */
+    'GEMINI_MODELO' => '',
+
+    /**
+     * '1' para habilitarlo. Sin esto, Gemini no se usa aunque haya clave:
+     * ponerlo es declarar que se usa solo desde el panel, por una persona
+     * adulta, que lo redactado se revisa antes de publicarse y que se conocen
+     * sus condiciones de datos (en el plan gratuito Google usa lo enviado para
+     * mejorar sus productos).
+     */
+    'GEMINI_USO_EDITORIAL' => '',
+
+    /**
+     * Quién redacta los borradores: 'auto' (Gemini si está habilitado; si no,
+     * Anthropic), 'gemini' o 'anthropic'. Vacío = 'auto'.
+     */
+    'REDACTOR_PROVEEDOR' => '',
+
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  2 ter. GOOGLE ANALYTICS 4 — por el Measurement Protocol
+    //     El SERVIDOR envía los eventos: la página no carga ningún script de
+    //     Google ni pone cookies (regla 2 del proyecto). Con los dos valores
+    //     puestos se mide; con uno solo, no. Detalle en lib/Analitica.php.
+    // ════════════════════════════════════════════════════════════════════════
+
+    /** ID de medición del flujo web, «G-XXXXXXXXXX». */
+    'GA_ID_MEDICION' => '',
+
+    /**
+     * Secreto de la API del Measurement Protocol (en el mismo flujo web:
+     * «Secretos de la API del Measurement Protocol» → Crear). Es una
+     * credencial: se queda en el servidor.
+     */
+    'GA_SECRETO_API' => '',
 
 
     // ════════════════════════════════════════════════════════════════════════

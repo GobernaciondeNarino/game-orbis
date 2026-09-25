@@ -17,11 +17,20 @@
  * real del audio entre las frases en proporción a su número de caracteres. No
  * es sincronización palabra a palabra, pero con frases de una o dos líneas el
  * desfase es de décimas y se corrige en cada cambio de frase.
+ *
+ * DE DÓNDE SALEN LOS TEXTOS. Del conocimiento publicado de cada cuerpo
+ * (api/conocimiento.php): las narraciones del catálogo más las que se añaden
+ * desde el panel, y sus datos sueltos. Cuantas más haya, más tarda en repetirse
+ * nada. Si el servidor no contesta, se usan las del catálogo, que vienen con la
+ * página. El audio se pide por la HUELLA del texto y no por su posición, para
+ * que el sonido y los subtítulos no se desacompasen si la lista cambia desde el
+ * panel mientras alguien navega.
  */
 
 import { App } from '../core/App.js';
 import { rutaApi, rutaApp } from '../utils/rutas.js';
 import { log, aviso } from '../utils/debug.js';
+import { cargarConocimiento, conocimientoEnMemoria } from '../utils/conocimiento.js';
 
 /** Milisegundos del fundido de entrada y de salida. */
 const FUNDIDO_ENTRADA = 320;
@@ -66,6 +75,14 @@ export class Narrator {
     // Turno de cada familia de entradilla («presentacion», «regreso»), aparte
     // del de las narraciones. Ver _turnoEntradilla.
     this._turnosEntradilla = new Map();
+
+    // Qué dato suelto toca decir tras la narración de cada cuerpo. Rotación,
+    // como todo lo demás: el mismo dato no vuelve hasta haberlos dicho todos.
+    this._turnosDato = new Map();
+    /** Cuerpo cuya narración, al terminar entera, lleva un dato detrás. */
+    this._datoPendiente = null;
+    /** Número de la última narración pedida: detecta que otra se adelantó. */
+    this._pedidoNarracion = 0;
 
     // Si el diagnóstico de arranque ya nos dijo que el servidor no puede
     // sintetizar, se empieza directamente con la voz del navegador. Así se
@@ -126,7 +143,14 @@ export class Narrator {
    *   debe gastar el cupo por hora del visitante ni la cuota de la cuenta.
    */
   _url(id, soloCache = false, variante = 0) {
-    const base = `${rutaApi('tts.php')}?bodyId=${encodeURIComponent(id)}&variante=${variante}`;
+    // Con el conocimiento ya cargado, se pide por la huella del texto que se va
+    // a subtitular: el servidor solo encuentra ese texto, o nada. Sin él, por
+    // posición, como antes.
+    const publicadas = conocimientoEnMemoria(id)?.narraciones;
+    const elegida = publicadas?.length ? publicadas[variante % publicadas.length] : null;
+    const base = elegida
+      ? `${rutaApi('tts.php')}?bodyId=${encodeURIComponent(id)}&narracion=${elegida.huella}`
+      : `${rutaApi('tts.php')}?bodyId=${encodeURIComponent(id)}&variante=${variante}`;
     return soloCache ? `${base}&soloCache=1` : base;
   }
 
@@ -375,8 +399,13 @@ export class Narrator {
     this._fraseEnCurso = null;
   }
 
-  /** Las narraciones escritas para un cuerpo, o lista vacía si no tiene. */
+  /**
+   * Las narraciones de un cuerpo: las publicadas si ya llegaron —catálogo más
+   * panel, sin las retiradas—, y si no, las del catálogo que trae la página.
+   */
   _narraciones(id) {
+    const publicadas = conocimientoEnMemoria(id)?.narraciones;
+    if (publicadas?.length) return publicadas.map((n) => n.texto);
     const lista = this.porId.get(id)?.narraciones;
     return Array.isArray(lista) ? lista.filter(Boolean) : [];
   }
@@ -439,14 +468,22 @@ export class Narrator {
    * dos voces solapadas son peores que ninguna.
    */
   async narrar(id, varianteForzada = null) {
+    if (this.idActual === id && this.reproduciendo) return;
+
+    // El conocimiento publicado, si llega a tiempo (el módulo se rinde a los
+    // dos segundos y medio). Mientras se espera, el usuario puede haber
+    // cambiado de cuerpo: si otra narración se ha pedido después, esta ya no
+    // toca.
+    const pedido = ++this._pedidoNarracion;
+    await cargarConocimiento(id);
+    if (pedido !== this._pedidoNarracion) return;
+
     const cuerpo = this.porId.get(id);
     const narraciones = this._narraciones(id);
     if (!cuerpo || !narraciones.length) {
       this.detener();
       return;
     }
-
-    if (this.idActual === id && this.reproduciendo) return;
 
     if (varianteForzada === null) {
       // Se avanza el contador al empezar, no al terminar: quien corta la
@@ -460,6 +497,9 @@ export class Narrator {
 
     this.detener();
     this.idActual = id;
+    // Solo la narración que llega sola —al abrir el cuerpo— lleva un dato
+    // detrás. Quien pide «repetir» quiere oír lo mismo, no algo más.
+    this._datoPendiente = varianteForzada === null ? id : null;
     this.subtitulos.preparar(texto, cuerpo.nombre);
 
     // Entradilla del asistente: «Mira esto, Ana» la primera vez, «otra vez por
@@ -537,6 +577,8 @@ export class Narrator {
 
     for (const vecino of deseados) {
       if (this.precargas.has(vecino)) continue;
+      // Se pide ya su conocimiento, sin esperarlo: cuando le toque, estará.
+      cargarConocimiento(vecino);
       if (!this._narraciones(vecino).length) continue;
       const elemento = new Audio();
       elemento.preload = 'auto';
@@ -576,7 +618,7 @@ export class Narrator {
       }
     };
     locucion.onend = () => this._terminar();
-    locucion.onerror = () => this._terminar();
+    locucion.onerror = () => this._terminar(false);
 
     this._locucion = locucion;
     this.reproduciendo = true;
@@ -600,14 +642,48 @@ export class Narrator {
     this.subtitulos.mostrarEnFraccion(this.audio.currentTime / this.audio.duration);
   }
 
-  _terminar() {
+  /** @param {boolean} completa false si terminó por un error, no por llegar al final */
+  _terminar(completa = true) {
     this.reproduciendo = false;
     this.subtitulos.limpiar();
     App.emitir('narracion:fin', { id: this.idActual });
+
+    const pendiente = this._datoPendiente;
+    this._datoPendiente = null;
+    if (completa && pendiente && pendiente === this.idActual) this._decirDato(pendiente);
+  }
+
+  /**
+   * «Un dato más»: tras la narración, uno de los datos sueltos del cuerpo.
+   *
+   * Es lo que convierte el conocimiento de cada cuerpo en algo que se OYE, y
+   * no solo en algo que el asistente consulta. Rota por cuerpo —el mismo no
+   * vuelve hasta haberlos dicho todos— y se pide por su huella, igual que la
+   * narración: api/tts.php solo encuentra datos publicados de ese cuerpo.
+   */
+  async _decirDato(id) {
+    const datos = conocimientoEnMemoria(id)?.datos ?? [];
+    if (!datos.length || this.motor === 'ninguno') return;
+    if (App.preferencias.get('narracionSilenciada')) return;
+
+    const turno = this._turnosDato.get(id) ?? 0;
+    this._turnosDato.set(id, turno + 1);
+    const dato = datos[turno % datos.length];
+
+    await this.decirFrase('dato', this._turnoEntradilla('dato', this.porId.get(id)?.tipo), id);
+    // Mientras sonaba la entradilla se puede haber cambiado de cuerpo, o
+    // empezado otra narración: entonces este dato ya no toca.
+    if (this.idActual !== id || this.reproduciendo) return;
+
+    this.subtitulos.mostrarFrase(dato.texto, Math.max(5000, dato.texto.length * 70));
+    App.emitir('conocimiento:dato', { id, dato });
+    this._decirConVozDelServidor(`bodyId=${encodeURIComponent(id)}&dato=${dato.huella}`, dato.texto);
   }
 
   /** Interrupción inmediata, con un fundido muy corto para que no chasquee. */
   detener() {
+    // Quien corta la narración no quiere que siga un dato detrás.
+    this._datoPendiente = null;
     this._cortarFrase();
     if (this._locucion) {
       window.speechSynthesis?.cancel();

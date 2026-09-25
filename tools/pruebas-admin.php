@@ -36,6 +36,23 @@ SesionAdmin::iniciar();
 
 $fallos = 0;
 
+/**
+ * Todo el código del panel en una cadena: el marco, las pestañas y las
+ * acciones. Desde que el panel se partió en pestañas, lo que antes estaba en
+ * index.php vive repartido, y una prueba que mirase un solo archivo daría por
+ * perdido lo que solo se ha mudado.
+ */
+function fuentesDelPanel(): string
+{
+    $raiz = dirname(__DIR__) . '/wj-admin/';
+    $archivos = array_merge([$raiz . 'index.php'], glob($raiz . 'pestanas/*.php') ?: [], glob($raiz . 'acciones/*.php') ?: []);
+    $todo = '';
+    foreach ($archivos as $a) {
+        $todo .= (string) file_get_contents($a) . "\n";
+    }
+    return $todo;
+}
+
 function comprobar(string $nombre, $real, $esperado): void
 {
     global $fallos;
@@ -190,7 +207,7 @@ echo "\n▸ Copiar la plantilla no bloquea ningún campo del panel\n";
 
 echo "\n▸ Ningún campo se bloquea, y lo que queda debajo se dice\n";
 {
-    $panel = (string) file_get_contents(dirname(__DIR__) . '/wj-admin/index.php');
+    $panel = fuentesDelPanel();
 
     // Nada de «disabled» ni de descartar campos al guardar por venir de arriba:
     // eso era exactamente lo que impedía administrar desde el panel.
@@ -206,8 +223,7 @@ echo "\n▸ Ningún campo se bloquea, y lo que queda debajo se dice\n";
     comprobar('el panel consulta todos los orígenes', strpos($panel, 'Config::origenes(') !== false, true);
     comprobar('avisa de lo que hay escrito y sin usar', strpos($panel, 'sin usar') !== false, true);
     comprobar('y de qué manda mientras el campo esté vacío', strpos($panel, 'Ahora manda el de') !== false, true);
-    comprobar('y lo explica entero una vez arriba', strpos($panel, 'con un valor
-      escrito también en otro sitio') !== false, true);
+    comprobar('y lo explica entero una vez arriba', strpos($panel, 'tiene un valor escrito también en otro sitio') !== false, true);
 
     // El botón de borrar tiene que decir a qué se vuelve al borrar: sin eso,
     // «Borrar la clave guardada» parece que deja el sitio sin clave.
@@ -219,7 +235,7 @@ echo "\n▸ El desplegable de voces no miente sobre cuál está sonando\n";
     // Decía «La que trae ORBIS» aunque wj-config.php tuviera otra puesta. Con el
     // panel mandando, un desplegable en blanco significa «aquí no he elegido»,
     // no «suena la de por omisión»: son cosas distintas y hay que decir cuál.
-    $panel = (string) file_get_contents(dirname(__DIR__) . '/wj-admin/index.php');
+    $panel = fuentesDelPanel();
     comprobar('nombra la que suena de verdad', strpos($panel, 'Sin elegir aquí — suena') !== false, true);
     comprobar('y de dónde sale', strpos($panel, "' (de ' . \$debajo[0] . ')'") !== false, true);
 
@@ -318,7 +334,7 @@ echo "\n▸ El almacén está fuera de lo que se sirve\n";
     comprobar('con su .htaccess', strpos($htaccess, 'Require all denied') !== false, true);
 
     $raiz = (string) file_get_contents(dirname(__DIR__) . '/.htaccess');
-    comprobar('y bloqueado también desde la raíz', strpos($raiz, 'wj-content/(cache|logs|ajustes)/') !== false, true);
+    comprobar('y bloqueado también desde la raíz', strpos($raiz, 'wj-content/(cache|logs|ajustes|conocimiento)/') !== false, true);
 
     $gitignore = (string) file_get_contents(dirname(__DIR__) . '/.gitignore');
     comprobar('y fuera del repositorio', strpos($gitignore, 'wj-content/ajustes/*') !== false, true);
@@ -381,7 +397,7 @@ echo "\n▸ El panel no devuelve nunca una clave guardada\n";
 {
     // Un campo de contraseña relleno con el valor real lo entrega a cualquiera
     // que mire el código de la página.
-    $panel = (string) file_get_contents(dirname(__DIR__) . '/wj-admin/index.php');
+    $panel = fuentesDelPanel();
     comprobar(
         'los campos de clave salen sin value',
         preg_match('/type="password"[^>]*value=/', $panel),

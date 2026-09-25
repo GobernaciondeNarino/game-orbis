@@ -1,0 +1,9 @@
+# Piezas del panel que incluye index.php después de comprobar la sesión. No se
+# abren solas: cada archivo sale si no está definida ORBIS_PANEL, y además
+# Apache no los sirve. Dos cerraduras para un panel que escribe la
+# configuración del servidor.
+Require all denied
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

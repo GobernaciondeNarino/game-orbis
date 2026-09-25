@@ -60,6 +60,8 @@ final class Ajustes
      *   tipo:    'clave'   secreto; el panel nunca lo devuelve, solo dice si está
      *            'texto'   cadena corta con formato comprobado
      *            'entero'  número dentro de un rango
+     *            'opcion'  una de las claves de 'opciones', y nada más
+     *            'casilla' marcada ('1') o no ('')
      *   sinEsto: qué deja de funcionar mientras el campo esté vacío. Solo lo
      *            llevan los que de verdad hacen falta, y es lo que el panel
      *            lista arriba en «Lo que falta por configurar». Un campo sin
@@ -110,6 +112,59 @@ final class Ajustes
             'ayuda' => 'Vacío = el que trae ORBIS. Uno más pequeño gasta menos y responde algo peor. '
                 . 'Los identificadores llevan GUIONES, no puntos: claude-sonnet-4-6, no claude-sonnet-4.6. '
                 . 'Uno mal escrito no da error hasta que alguien pregunta algo; health.php?red=1 lo comprueba.',
+        ],
+
+        // Gemini (Google AI Studio). Solo para las herramientas EDITORIALES del
+        // panel, nunca para lo que usan los visitantes: sus términos exigen
+        // mayoría de edad y prohíben usarlo en un sitio al que probablemente
+        // accedan menores de 18, y este es un sitio de divulgación para niños.
+        // El razonamiento completo está en lib/Gemini.php.
+        'GEMINI_API_KEY' => [
+            'tipo' => 'clave', 'grupo' => 'gemini',
+            'etiqueta' => 'Clave de Google AI Studio',
+            'ayuda' => 'aistudio.google.com → Get API key → Create API key. Desde mayo de 2026 las claves '
+                . 'nuevas ya son «auth keys»; las «estándar» antiguas dejan de funcionar en septiembre de 2026.',
+        ],
+        'GEMINI_MODELO' => [
+            'omision' => 'gemini-3.8-flash',
+            'tipo' => 'texto', 'grupo' => 'gemini', 'patron' => '/^[a-z0-9.\-]{0,60}$/',
+            'etiqueta' => 'Modelo de Gemini',
+            'ayuda' => 'Vacío = gemini-3.8-flash. Al revés que en Anthropic, aquí los identificadores SÍ '
+                . 'llevan puntos. gemini-3.5-flash-lite gasta menos y redacta algo peor.',
+        ],
+        'GEMINI_USO_EDITORIAL' => [
+            'tipo' => 'casilla', 'grupo' => 'gemini',
+            'etiqueta' => 'Uso Gemini solo desde este panel, y he revisado sus términos',
+            'ayuda' => 'Sin esta casilla, Gemini no se usa aunque haya clave. Marcarla es declarar que quien lo '
+                . 'usa es una persona adulta desde el panel, que lo redactado se revisa antes de publicarse y '
+                . 'que se conocen sus condiciones de datos (ver el aviso de arriba).',
+        ],
+        'REDACTOR_PROVEEDOR' => [
+            'omision' => 'auto',
+            'tipo' => 'opcion', 'grupo' => 'redaccion',
+            'opciones' => [
+                'auto'      => 'Automático: Gemini si está habilitado; si no, Anthropic',
+                'gemini'    => 'Gemini',
+                'anthropic' => 'Anthropic',
+            ],
+            'etiqueta' => 'Quién redacta los borradores',
+            'ayuda' => 'Para «Proponer una narración» en cada cuerpo. El borrador nunca se publica solo: '
+                . 'aparece en el formulario para revisarlo, corregirlo y guardarlo.',
+        ],
+
+        // Google Analytics 4, por el Measurement Protocol: el servidor envía los
+        // eventos, el navegador no carga ningún script de Google. Ver
+        // lib/Analitica.php.
+        'GA_ID_MEDICION' => [
+            'tipo' => 'texto', 'grupo' => 'analitica', 'patron' => '/^(G-[A-Z0-9]{4,20})?$/',
+            'etiqueta' => 'ID de medición',
+            'ayuda' => 'Analytics → Administrar → Flujos de datos → tu flujo web. Empieza por «G-».',
+        ],
+        'GA_SECRETO_API' => [
+            'tipo' => 'clave', 'grupo' => 'analitica', 'patron' => '/^[A-Za-z0-9_\-]{8,64}$/',
+            'etiqueta' => 'Secreto de la API del Measurement Protocol',
+            'ayuda' => 'En el mismo flujo web: «Secretos de la API del Measurement Protocol» → Crear. '
+                . 'Es una credencial: se queda en el servidor.',
         ],
         'LIMITE_GENERACIONES_HORA' => [
             'omision' => '30',
@@ -361,10 +416,80 @@ final class Ajustes
             return [true, $valor, ''];
         }
 
+        if ($campo['tipo'] === 'casilla') {
+            // Un formulario manda «1», «on» o nada según el navegador; aquí
+            // solo sobreviven dos estados.
+            return [true, in_array(strtolower($valor), ['1', 'on', 'si', 'sí', 'true'], true) ? '1' : '', ''];
+        }
+
+        if ($campo['tipo'] === 'opcion') {
+            if ($valor === '' || isset($campo['opciones'][$valor])) {
+                return [true, $valor, ''];
+            }
+            return [false, '', 'no es una de las opciones'];
+        }
+
         if ($valor !== '' && preg_match($campo['patron'], $valor) !== 1) {
             return [false, '', 'tiene caracteres que no se admiten'];
         }
         return [true, $valor, ''];
+    }
+
+    /**
+     * Cómo se agrupan los campos y en qué pestaña del panel va cada grupo.
+     *
+     * Vive aquí y no en el panel porque las pruebas y el diagnóstico también
+     * necesitan saber a qué servicio pertenece cada ajuste.
+     */
+    const GRUPOS = [
+        'voz' => [
+            'pestana' => 'apis', 'servicio' => 'elevenlabs',
+            'titulo' => 'ElevenLabs — narración con voz',
+            'nota' => 'Sin clave, ORBIS narra con la voz del navegador. «Verificar» hace una síntesis de '
+                . 'verdad: es la única prueba que detecta una clave sin permiso para sintetizar.',
+        ],
+        'asistente' => [
+            'pestana' => 'apis', 'servicio' => 'anthropic',
+            'titulo' => 'Anthropic — asistente conversacional',
+            'nota' => 'Es quien conversa con los visitantes. Sin clave, el asistente no conversa; las '
+                . 'preguntas del catálogo se siguen respondiendo.',
+        ],
+        'gemini' => [
+            'pestana' => 'apis', 'servicio' => 'gemini',
+            'titulo' => 'Google AI Studio — Gemini',
+            'nota' => 'Herramienta editorial del panel: redacta borradores de narraciones a partir del '
+                . 'conocimiento de cada cuerpo y propone datos a partir de un texto de fuente. No habla '
+                . 'con los visitantes.',
+        ],
+        'redaccion' => [
+            'pestana' => 'conocimiento', 'servicio' => null,
+            'titulo' => 'Borradores con IA',
+            'nota' => 'Nada redactado por una IA se publica sin pasar por el formulario.',
+        ],
+        'analitica' => [
+            'pestana' => 'analitica', 'servicio' => 'analitica',
+            'titulo' => 'Google Analytics 4',
+            'nota' => 'Con los dos campos rellenos, ORBIS empieza a enviar eventos. Vacíos, no se envía nada.',
+        ],
+        'gasto' => [
+            'pestana' => 'limites', 'servicio' => null,
+            'titulo' => 'Topes de gasto',
+            'nota' => 'Los primeros acotan lo que gasta una persona; los siguientes, lo que gasta el sitio '
+                . 'entero en un día. Vacío deja el valor que trae ORBIS; cero desactiva el tope, que no es lo mismo.',
+        ],
+    ];
+
+    /** Los grupos que van en una pestaña, con sus campos. */
+    public static function gruposDe(string $pestana): array
+    {
+        $todos = self::porGrupo();
+        $salida = [];
+        foreach (self::GRUPOS as $grupo => $meta) {
+            if ($meta['pestana'] === $pestana && isset($todos[$grupo])) {
+                $salida[$grupo] = $todos[$grupo];
+            }
+        }
+        return $salida;
     }
 
     /**

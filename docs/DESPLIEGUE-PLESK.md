@@ -134,7 +134,7 @@ find httpdocs -type d -exec chmod 755 {} \;
 find httpdocs -type f -exec chmod 644 {} \;
 
 # Escritura para la caché de audio y los registros
-chmod 775 httpdocs/wj-content/cache/audio httpdocs/wj-content/logs httpdocs/wj-content/ajustes
+chmod 775 httpdocs/wj-content/cache/audio httpdocs/wj-content/logs httpdocs/wj-content/ajustes httpdocs/wj-content/conocimiento
 ```
 
 El propietario debe ser el usuario del suscriptor de Plesk (habitualmente el
@@ -185,6 +185,25 @@ despliegue y revisa `el .htaccess raíz` y que `AllowOverride` esté habilitado.
 ### 5.1 bis  El panel: https://tu-dominio/wj-admin/
 
 La forma cómoda de poner las claves y los topes sin abrir un archivo por FTP.
+Tiene cinco pestañas, y cada una es una URL que se puede enlazar y recargar
+(`?pestana=apis`, `?pestana=conocimiento&cuerpo=marte`…):
+
+| Pestaña | Qué hay |
+|---|---|
+| **Inicio** | Lo que falta por configurar, el estado de cada servicio con la fecha de su última verificación, y qué cuerpos tienen conocimiento añadido |
+| **APIs** | ElevenLabs, Anthropic y Gemini, cada uno con **Guardar y verificar** |
+| **Conocimiento** | La fuente de conocimiento de cada cuerpo, por categorías: Sol, planetas, planetas enanos, lunas (agrupadas por planeta) y cinturones |
+| **Analítica** | Google Analytics 4, con verificación y el recuento de envíos del día |
+| **Topes de gasto** | Los límites por visitante, los techos diarios y la sal de los contadores |
+
+**Verificar hace peticiones de verdad**, no mira si el campo está relleno. En
+ElevenLabs comprueba que la clave vale, que el modelo existe, el saldo del mes,
+qué es de verdad la voz configurada (idioma y uso) y, sobre todo, **sintetiza una
+frase**: es la única prueba que detecta una clave sin el permiso
+`text_to_speech`, el fallo que dejó a ORBIS narrando con la voz del navegador con
+todo lo demás en verde. El audio de prueba queda en la caché y se oye en el
+reproductor «Suena ahora». En Anthropic pregunta al catálogo de modelos si el
+modelo escrito existe, que es como se detecta un `claude-sonnet-4.6` mal escrito.
 
 **Antes de abrir el sitio al público, cambia su clave.** Mientras no lo hagas se
 usa `orbis-admin`, que viene escrita en el repositorio: cualquiera que vea el
@@ -249,7 +268,7 @@ que entrar y salir varias veces no deja fuera a nadie.
 ### 5.2 Alternativa para las claves: variables de entorno
 
 Plesk → *Dominios* → **Configuración de PHP** → *Variables de entorno*. Sirve
-para cualquiera de los quince nombres de la tabla de abajo.
+para cualquiera de los veintiún nombres de la tabla de abajo.
 
 Es mejor sitio para las dos claves de API: no tocan el disco del sitio, así que
 no pueden acabar en una copia de seguridad descargable ni viajar en un
@@ -269,12 +288,18 @@ despliegue por FTP.
 |---|---|---|
 | `WJ_ADMIN_CLAVE` | **Clave del panel** `/wj-admin/`. Solo aquí o en `wj-config.php` | `orbis-admin`, la del repositorio — **cámbiala** |
 | `ELEVENLABS_API_KEY` | Narración hablada y dictado por voz | Narra la voz del navegador, bastante peor |
-| `ELEVENLABS_VOICE_ID` | **Código de la voz** de ORBIS | `lE5ZJB6jGeeuvSNxOvs2`, la voz de ORBIS |
+| `ELEVENLABS_VOICE_ID` | **Código de la voz** de ORBIS | `gbTn1bmCvNgk0QEAVyfM`, «Enrique M. Nieto» |
 | `ELEVENLABS_MODEL_ID` | Modelo de síntesis | `eleven_multilingual_v2` |
 | `ELEVENLABS_VOCES_PERMITIDAS` | Voces que `wj-includes/api/tts.php` acepta, separadas por comas | Solo la voz activa |
 | `ELEVENLABS_STT_MODEL` | Modelo de transcripción | `scribe_v1` |
 | `ANTHROPIC_API_KEY` | **Asistente conversacional** | El asistente no conversa; las preguntas del catálogo se siguen respondiendo |
 | `ORBIS_MODELO` | Modelo del asistente | `claude-opus-5` |
+| `GEMINI_API_KEY` | Gemini, **solo** para redactar borradores desde el panel (ver 5.7) | No se ofrece redactar con Gemini |
+| `GEMINI_MODELO` | Modelo de Gemini | `gemini-3.8-flash` |
+| `GEMINI_USO_EDITORIAL` | `1` para habilitarlo tras leer sus términos | Gemini no se usa aunque haya clave |
+| `REDACTOR_PROVEEDOR` | Quién redacta los borradores: `auto`, `gemini` o `anthropic` | `auto` |
+| `GA_ID_MEDICION` | ID de medición de GA4 (`G-…`) | No se mide nada |
+| `GA_SECRETO_API` | Secreto del Measurement Protocol | No se mide nada |
 | `LIMITE_GENERACIONES_HORA` | Narraciones nuevas por IP y hora | `30` |
 | `LIMITE_TRANSCRIPCIONES_HORA` | Transcripciones por IP y hora | `120` |
 | `LIMITE_CONVERSACION_HORA` | Respuestas del asistente por IP y hora | `60` |
@@ -314,10 +339,12 @@ catálogo. Lo que se pierde es la voz sintetizada y la conversación libre.
 
 ### 5.4 Cambiar la voz, y oírla antes
 
-**Entra en `/wj-admin/`, sección «Narración con voz».** Hay un desplegable con
-diez voces en español y, debajo, un reproductor por cada una: todas dicen la
-misma frase, con los mismos ajustes que usa la narración de verdad. Escúchalas,
-elige y guarda.
+**Entra en `/wj-admin/`, pestaña APIs, tarjeta de ElevenLabs.** Hay un
+desplegable con diez voces en español y, debajo, un reproductor por cada una
+—el primero, «Suena ahora», es la que está puesta en el sitio, aunque venga de
+`wj-config.php` y no sea una de las diez—: todas dicen la misma frase, con los
+mismos ajustes que usa la narración de verdad. Escúchalas, elige y pulsa
+«Guardar y verificar».
 
 La frase de prueba lleva a propósito una cifra con separadores —«1.391.400
 kilómetros»— porque es donde se nota si una voz sirve para esto: leer números en
@@ -368,6 +395,82 @@ No hay que tocar nada más: la caché de audio sigue sirviendo, porque lo que
 guarda son MP3 ya pagados, no la clave.
 
 ---
+
+### 5.6 La fuente de conocimiento de cada cuerpo
+
+Pestaña **Conocimiento** del panel. Cada cuerpo tiene su propio conjunto de
+entradas, de dos tipos:
+
+- **Narraciones**: relatos de un minuto que se alternan cada vez que se visita
+  el cuerpo. Las tres del catálogo son la base; cada una que se añade alarga la
+  rotación, y la misma no vuelve a sonar hasta haberlas oído todas.
+- **Datos**: hechos sueltos, cada uno con su fuente. Se dicen tras la narración
+  («un dato más…»), aparecen en la ficha del cuerpo con su fuente debajo, y el
+  asistente conversacional los consulta con una herramienta propia.
+
+**Ninguna entrada se guarda sin fuente**: el campo es obligatorio y se valida en
+el servidor. Lo del catálogo se puede **corregir** o **retirar**, nunca borrar
+—está en el repositorio— y «Restaurar el original» deshace la corrección. Lo
+añadido en el panel se puede borrar, pero solo después de retirarlo: borrar
+son dos pasos a propósito.
+
+Todo se guarda en `wj-content/conocimiento/`, **un archivo por cuerpo, fuera de
+git**. Si el panel reescribiera `data/sistema-solar.json`, el siguiente
+`git pull` de Plesk chocaría con esos cambios o los pisaría.
+
+**Borradores con IA.** En cada cuerpo, «Proponer un borrador» redacta una
+narración nueva usando solo sus datos publicados y los del catálogo, desde un
+ángulo distinto al de las que ya existen; y «Extraer datos de un texto de
+fuente» saca de tres a seis datos de un fragmento que se pegue. El resultado
+**nunca se publica solo**: aparece en el formulario, con un aviso por cada cifra
+que no esté en ninguna fuente de ese cuerpo, para revisarlo, corregirlo y
+guardarlo. Redacta Claude (Anthropic) o Gemini, según `REDACTOR_PROVEEDOR`.
+
+### 5.7 Gemini (Google AI Studio): por qué solo en el panel
+
+Los términos del Gemini API, en vigor desde marzo de 2026, exigen mayoría de
+edad y prohíben usarlo *«as part of a website […] that is directed towards or is
+likely to be accessed by individuals under the age of 18»*
+([ai.google.dev/gemini-api/terms](https://ai.google.dev/gemini-api/terms)).
+ORBIS es divulgación para niños, así que Gemini **no habla con los visitantes**:
+ni conversa, ni narra, ni transcribe. Solo ayuda a quien administra a redactar
+borradores, y ni eso hasta marcar la casilla `GEMINI_USO_EDITORIAL`. Una prueba
+(`tools/pruebas-conocimiento.php`) falla si Gemini aparece en algún endpoint
+público o en el código del navegador.
+
+Dos cosas más que conviene saber: en el **plan gratuito** Google usa lo que se
+le envía para mejorar sus productos y pueden leerlo personas (con facturación
+activa, no); y desde **septiembre de 2026** solo acepta claves de tipo *auth key*,
+que es como nacen hoy las que se crean en AI Studio.
+
+Si la Gobernación quisiera otro uso —conversación por voz en tiempo real, voz de
+narración—, técnicamente encaja, pero es una decisión de sus servicios
+jurídicos. El sitio donde cambiarlo es `wj-includes/lib/Gemini.php`.
+
+### 5.8 Google Analytics 4
+
+Pestaña **Analítica**: el ID de medición (`G-…`) y un secreto del Measurement
+Protocol (en GA4: Administrar → Flujos de datos → tu flujo web → *Secretos de la
+API del Measurement Protocol*).
+
+**La página no carga ningún script de Google ni pone cookies.** El navegador le
+cuenta a `wj-includes/api/evento.php` qué ha pasado y es el servidor quien se lo
+manda a Google. Así se respeta la regla 2 del proyecto —nada de terceros en el
+navegador— y la CSP no hay que tocarla. Solo se aceptan ocho eventos de una
+lista cerrada (`page_view`, `ver_cuerpo`, `narracion`, `usar_voz`,
+`usar_gestos`, `preguntar`, `cambiar_escala`, `cambiar_seccion`); cualquier otro
+se descarta. Los navegadores con *Global Privacy Control* o «No rastrear» no
+envían nada.
+
+Lo que se pierde, dicho claro: sin cookies, **cada visita cuenta como un usuario
+nuevo**, así que «Usuarios» sale inflado —sesiones, eventos y cuerpos visitados
+sí son fiables—, y **país y ciudad serán los del servidor**, porque la IP del
+visitante no se reenvía.
+
+«Guardar y verificar» pasa un evento por el validador de Google y envía uno real,
+`orbis_prueba`: si en uno o dos minutos no aparece en GA4 → Informes → Tiempo
+real, el secreto o el ID no son de ese flujo (Google responde 204 aunque el
+secreto no valga, así que esa es la única comprobación definitiva).
 
 ## 6. Prueba de humo
 

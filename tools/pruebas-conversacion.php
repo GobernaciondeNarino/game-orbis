@@ -59,12 +59,13 @@ echo "\n▸ Sin clave configurada no se rompe nada\n";
 echo "\n▸ Las herramientas están bien declaradas\n";
 {
     $herramientas = interno('herramientas');
-    comprobar('hay seis', count($herramientas), 6);
+    // Siete desde que el asistente consulta el conocimiento de cada cuerpo.
+    comprobar('hay siete', count($herramientas), 7);
 
     $nombres = array_map(static fn($h) => $h['name'], $herramientas);
     sort($nombres);
     comprobar('son las esperadas', $nombres, [
-        'datos_del_cuerpo', 'listar_cuerpos', 'lluvia_de_meteoros',
+        'conocimiento_del_cuerpo', 'datos_del_cuerpo', 'listar_cuerpos', 'lluvia_de_meteoros',
         'mostrar', 'posicion_hoy', 'vista_general',
     ]);
 
@@ -121,6 +122,19 @@ echo "\n▸ El historial que llega del navegador se normaliza\n";
     comprobar('se recorta la longitud', mb_strlen(end($limpio)['content']), Conversacion::MAX_CARACTERES);
     comprobar('una lista vacía no revienta', interno('historial', []), []);
     comprobar('solo turnos del asistente se vacía', interno('historial', [['rol' => 'asistente', 'texto' => 'x']]), []);
+}
+
+echo "\n▸ El conocimiento de un cuerpo llega con la fuente de CADA dato\n";
+{
+    $r = interno('ejecutar', 'conocimiento_del_cuerpo', ['id' => 'marte']);
+    comprobar('devuelve datos de Marte', is_array($r['datos']) && count($r['datos']) > 0 && isset($r['datos'][0]['texto']), true);
+    $sinFuente = array_filter($r['datos'], static fn($d) => trim((string) ($d['fuente'] ?? '')) === '');
+    comprobar('ninguno sin fuente', count($sinFuente), 0);
+    comprobar('y las fuentes suben a la respuesta', count($r['fuentes']) > 0, true);
+    // Las narraciones no viajan: ya se oyen al visitar el cuerpo.
+    comprobar('sin narraciones dentro', strpos(json_encode($r['datos'], JSON_UNESCAPED_UNICODE), 'Marte fue en su día') === false, true);
+    $x = interno('ejecutar', 'conocimiento_del_cuerpo', ['id' => 'planeta-x']);
+    comprobar('un cuerpo inventado da error, no datos', isset($x['datos']['error']), true);
 }
 
 echo "\n▸ Las herramientas devuelven los datos REALES del catálogo\n";

@@ -34,6 +34,13 @@ wj-content/ajustes/*
 !wj-content/ajustes/.gitkeep
 !wj-content/ajustes/.htaccess
 
+# Lo que se añade o corrige desde la pestaña de conocimiento del panel. Mismo
+# trato: la carpeta viaja, su contenido no. Si se versionara, el siguiente
+# «git pull» de Plesk chocaría con lo que se haya editado en el servidor.
+wj-content/conocimiento/*
+!wj-content/conocimiento/.gitkeep
+!wj-content/conocimiento/.htaccess
+
 # Las texturas SÍ se versionan: 13 MB que permiten desplegar en Plesk con un
 # solo «git pull», sin subir nada aparte. Licencias en CREDITOS.json.
 # Se descargan y actualizan con: node tools/texturas.mjs
@@ -51,6 +58,11 @@ wj-content/assets/skybox/*
 # El grafo de Graphify (/graphify): se regenera con «graphify update .» y se
 # queda viejo en cuanto cambia el código. Versionarlo sería guardar una foto.
 graphify-out/
+
+# Copias de trabajo aisladas que crea el asistente de desarrollo para tareas en
+# paralelo. Son ramas de git completas: meterlas en un commit duplicaría el
+# repositorio dentro de sí mismo.
+.claude/worktrees/
 
 # Sistema operativo / editores
 .DS_Store

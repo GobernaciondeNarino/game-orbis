@@ -59,6 +59,7 @@ php  tools/pruebas-config.php              # claves documentadas, y ninguna filt
 php  tools/pruebas-admin.php               # panel: lista cerrada, precedencia y cerradura
 php  tools/pruebas-limites.php             # cupo por IP y techo diario del sitio
 php  tools/pruebas-meteoros.php            # calendario de lluvias de meteoros
+php  tools/pruebas-conocimiento.php        # conocimiento con fuente, huellas, Gemini fuera de lo público, Analytics
 node tools/pruebas-voz.mjs                 # parser de intenciones de voz
 node tools/csp-hash.mjs --verificar        # hash CSP del importmap al día
 find api config -name '*.php' -exec php -l {} \;

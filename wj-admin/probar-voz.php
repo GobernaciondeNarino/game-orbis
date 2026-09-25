@@ -21,8 +21,8 @@
  * entero de ElevenLabs a costa del titular de la cuenta. Ampliar esa lista para
  * poder probar habría abierto justo el agujero que la lista cierra.
  *
- * Esto vive detrás de la sesión del panel, acepta SOLO las diez voces
- * candidatas y dice una frase fija de ochenta caracteres. Lo que se puede
+ * Esto vive detrás de la sesión del panel, acepta SOLO las voces candidatas
+ * y la que está configurada, y dice una frase fija de ochenta caracteres. Lo que se puede
  * gastar desde aquí está acotado por tres sitios a la vez.
  *
  * ════════════════════════════════════════════════════════════════════════════
@@ -42,6 +42,7 @@ require_once __DIR__ . '/../wj-includes/lib/SesionAdmin.php';
 require_once __DIR__ . '/../wj-includes/lib/Cache.php';
 require_once __DIR__ . '/../wj-includes/lib/RateLimiter.php';
 require_once __DIR__ . '/../wj-includes/lib/Respuesta.php';
+require_once __DIR__ . '/../wj-includes/lib/ElevenLabs.php';
 
 /**
  * La frase de prueba.
@@ -59,17 +60,22 @@ if (!SesionAdmin::dentro()) {
     Respuesta::error(403, 'sin_sesion', 'Hay que entrar en el panel para probar una voz.');
 }
 
+// Se aceptan las candidatas y, además, la voz que está configurada AHORA
+// aunque no esté entre ellas. Sin eso, quien tiene puesta una voz escrita a
+// mano —en wj-config.php o en Plesk— no tenía forma de oír qué suena en su
+// sitio, que es la pregunta más importante de todas. No abre nada: esa voz ya
+// la puede sintetizar api/tts.php, que es público.
 $voz = (string) ($_GET['voz'] ?? '');
-if (!isset(Ajustes::VOCES[$voz])) {
+$esLaConfigurada = $voz !== '' && $voz === ElevenLabs::vozConfigurada();
+if (!isset(Ajustes::VOCES[$voz]) && !$esLaConfigurada) {
     Respuesta::error(400, 'voz_no_candidata', 'Esa voz no está entre las candidatas del panel.');
 }
 
-$clave = Config::obtener('ELEVENLABS_API_KEY');
-if ($clave === null || $clave === '') {
+if (ElevenLabs::clave() === null) {
     Respuesta::error(503, 'sin_credencial', 'No hay clave de ElevenLabs configurada.');
 }
 
-$modelo = (string) Config::obtener('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2');
+$modelo = ElevenLabs::modeloConfigurado();
 
 // La caché es la misma de la narración: misma voz y misma frase, mismo audio.
 $cache = new Cache();
@@ -79,71 +85,32 @@ if ($cache->existe($claveCache)) {
     exit;
 }
 
-// Diez pruebas por hora: comparar el catálogo entero cabe de sobra, y dejar el
-// botón pulsado no.
+// Veinte pruebas por hora: comparar el catálogo entero cabe de sobra, y dejar
+// el botón pulsado no.
 $limitador = new RateLimiter(20, 3600, 'pruebavoz', 60);
 if (!$limitador->consumir()['permitido']) {
     Respuesta::error(429, 'limite_alcanzado', 'Demasiadas pruebas seguidas. Espera un poco.');
 }
 
-if (!extension_loaded('curl')) {
-    Respuesta::error(503, 'sin_curl', 'El servidor no puede sintetizar voz.');
-}
+// Los MISMOS ajustes que usa la narración de verdad —viven en ElevenLabs.php—:
+// probar con otros daría una idea equivocada de cómo va a sonar el sitio.
+$sintesis = ElevenLabs::sintetizar(FRASE, $voz, $modelo);
 
-$ch = curl_init(
-    'https://api.elevenlabs.io/v1/text-to-speech/' . rawurlencode($voz)
-    . '?output_format=mp3_44100_128'
-);
-curl_setopt_array($ch, [
-    CURLOPT_POST           => true,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 45,
-    CURLOPT_SSL_VERIFYPEER => true,
-    CURLOPT_SSL_VERIFYHOST => 2,
-    CURLOPT_HTTPHEADER     => [
-        'xi-api-key: ' . $clave,
-        'Content-Type: application/json',
-        'Accept: audio/mpeg',
-    ],
-    // Los MISMOS ajustes que usa la narración de verdad: probar con otros daría
-    // una idea equivocada de cómo va a sonar el sitio.
-    CURLOPT_POSTFIELDS => json_encode([
-        'text'     => FRASE,
-        'model_id' => $modelo,
-        'voice_settings' => [
-            'stability'         => 0.42,
-            'similarity_boost'  => 0.78,
-            'style'             => 0.15,
-            'use_speaker_boost' => true,
-        ],
-    ], JSON_UNESCAPED_UNICODE),
-]);
-$audio = curl_exec($ch);
-$codigo = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-$tipo = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-curl_close($ch);
-
-if ($codigo !== 200 || strpos($tipo, 'audio') === false) {
-    $detalle = json_decode((string) $audio, true);
-    $mensajeApi = (string) ($detalle['detail']['message'] ?? '');
-    $sinPermiso = $codigo === 401
-        && (($detalle['detail']['status'] ?? '') === 'missing_permissions'
-            || stripos($mensajeApi, 'permission') !== false);
-
+if (!$sintesis['ok']) {
     Respuesta::error(
         502,
-        $sinPermiso ? 'clave_sin_permiso' : 'error_sintesis',
-        $sinPermiso
+        $sintesis['error'],
+        $sintesis['error'] === 'clave_sin_permiso'
             ? 'La clave configurada no tiene permiso para sintetizar. Activa «text_to_speech» en '
                 . 'el panel de ElevenLabs para esa clave, o genera otra que lo tenga.'
             : 'ElevenLabs devolvió un error al probar esta voz.',
-        'HTTP ' . $codigo . ' — ' . substr((string) $audio, 0, 200)
+        'HTTP ' . $sintesis['codigo'] . ' — ' . $sintesis['detalle']
     );
 }
 
-$cache->guardar($claveCache, (string) $audio);
+$cache->guardar($claveCache, $sintesis['audio']);
 Respuesta::registrar('info', 'Prueba de voz ' . $voz . ' desde wj-admin.');
 
 header('Content-Type: audio/mpeg');
-header('Content-Length: ' . strlen((string) $audio));
-echo $audio;
+header('Content-Length: ' . strlen($sintesis['audio']));
+echo $sintesis['audio'];

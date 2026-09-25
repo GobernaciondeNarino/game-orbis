@@ -46,6 +46,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Config.php';
 require_once __DIR__ . '/Catalogo.php';
+require_once __DIR__ . '/Conocimiento.php';
 require_once __DIR__ . '/Respuestas.php';
 require_once __DIR__ . '/Horizons.php';
 require_once __DIR__ . '/Meteoros.php';
@@ -301,6 +302,20 @@ final class Conversacion
                 ],
             ],
             [
+                'name' => 'conocimiento_del_cuerpo',
+                'description' => 'Los datos de divulgación publicados sobre un cuerpo, cada uno con SU fuente: hechos '
+                    . 'sobre su historia, su superficie, su exploración, comparaciones y curiosidades que no son '
+                    . 'cifras del catálogo. Úsala cuando pregunten «qué tiene de especial», «cuéntame algo» o algo '
+                    . 'que datos_del_cuerpo no responde. Si cuentas uno, di de dónde sale.',
+                'inputSchema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'id' => ['type' => 'string', 'description' => 'Identificador del cuerpo.'],
+                    ],
+                    'required' => ['id'],
+                ],
+            ],
+            [
                 'name' => 'posicion_hoy',
                 'description' => 'Dónde está un cuerpo HOY según JPL Horizons: distancia real a la Tierra, si se '
                     . 'acerca o se aleja, y sus coordenadas en el cielo. Es lo único que no está en el catálogo '
@@ -377,6 +392,27 @@ final class Conversacion
                     'datos' => $c,
                     'acciones' => [],
                     'fuentes' => [(string) ($c['fuente'] ?? '')],
+                ];
+            }
+
+            case 'conocimiento_del_cuerpo': {
+                if (Catalogo::cuerpo($id) === null) {
+                    return ['datos' => ['error' => 'No existe ningún cuerpo con ese identificador en el catálogo.'],
+                            'acciones' => [], 'fuentes' => []];
+                }
+                // Solo los datos: las narraciones son relatos largos que ya se
+                // oyen al visitar el cuerpo, y mandarlas gastaría contexto para
+                // que el asistente acabara repitiéndolas.
+                $datos = [];
+                $fuentes = [];
+                foreach (Conocimiento::datos($id) as $d) {
+                    $datos[] = ['tema' => $d['tema'], 'texto' => $d['texto'], 'fuente' => $d['fuente']];
+                    $fuentes[] = $d['fuente'];
+                }
+                return [
+                    'datos' => $datos === [] ? ['nota' => 'No hay datos publicados para este cuerpo.'] : $datos,
+                    'acciones' => [],
+                    'fuentes' => array_values(array_unique($fuentes)),
                 ];
             }
 

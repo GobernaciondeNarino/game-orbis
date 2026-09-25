@@ -6,8 +6,13 @@
  * imagen de referencia.
  *
  * El contenido es TEXTO REAL Y LEGIBLE: el perfil extendido del cuerpo más sus
- * curiosidades, tal como están en el catálogo. No es relleno decorativo ni
- * caracteres aleatorios; quien se pare a leerlo aprende algo.
+ * datos de interés, tal como están en su fuente de conocimiento. No es relleno
+ * decorativo ni caracteres aleatorios; quien se pare a leerlo aprende algo.
+ *
+ * Los datos de interés salen del conocimiento publicado del cuerpo —catálogo más
+ * lo añadido desde el panel— y cada uno lleva SU fuente debajo. Antes eran solo
+ * las curiosidades del catálogo con una fuente común al final, que valía para
+ * las cifras de JPL pero no para una frase sobre los rovers de Marte.
  *
  * La curvatura se consigue desplazando cada línea horizontalmente según su
  * posición vertical, siguiendo un arco de circunferencia. Es más barato que
@@ -16,6 +21,10 @@
 
 import { crear } from '../utils/dom.js';
 import { formatearNumero, formatearCientifico } from '../utils/math.js';
+import { cargarConocimiento, conocimientoEnMemoria } from '../utils/conocimiento.js';
+
+/** Cuántos datos de interés caben en el arco sin que se vuelva una pared. */
+const MAX_DATOS = 5;
 
 const REDUCIR = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 
@@ -37,8 +46,11 @@ export class ArcoDatos {
     contenedor.append(this.panel);
   }
 
-  /** Compone las líneas de texto a partir del catálogo. */
-  _componer(cuerpo) {
+  /**
+   * Compone las líneas de texto a partir del catálogo.
+   * @param {object[]|null} datos los del conocimiento publicado, si llegaron
+   */
+  _componer(cuerpo, datos = null) {
     const lineas = [];
     const dato = (etiqueta, valor, unidad = '') =>
       valor === null || valor === undefined
@@ -74,11 +86,25 @@ export class ArcoDatos {
       if (t.nota) lineas.push(`  ${t.nota}`);
     }
 
-    if (cuerpo.curiosidades?.length) {
+    // La nota de temperatura ya está arriba: no se repite como dato.
+    const yaDicho = (t) => Boolean(cuerpo.temperatura?.nota)
+      && t.toLowerCase().startsWith(cuerpo.temperatura.nota.slice(0, 30).toLowerCase());
+
+    if (datos?.length) {
+      const mostrados = datos.filter((d) => !yaDicho(d.texto)).slice(0, MAX_DATOS);
+      if (mostrados.length) {
+        lineas.push('');
+        lineas.push('── DATOS DE INTERÉS ──');
+        for (const d of mostrados) {
+          // Se parte a 46 caracteres sin romper palabras.
+          for (const trozo of partir(`· ${d.texto}`, 46)) lineas.push(trozo);
+          for (const trozo of partir(`  ↳ ${d.fuente}`, 46)) lineas.push(trozo);
+        }
+      }
+    } else if (cuerpo.curiosidades?.length) {
       lineas.push('');
       lineas.push('── DATOS DE INTERÉS ──');
       for (const curiosidad of cuerpo.curiosidades) {
-        // Se parte a 46 caracteres sin romper palabras.
         for (const trozo of partir(`· ${curiosidad}`, 46)) lineas.push(trozo);
       }
     }
@@ -88,12 +114,30 @@ export class ArcoDatos {
     return lineas;
   }
 
-  /** Muestra la ficha de un cuerpo con la aparición escalonada. */
+  /**
+   * Muestra la ficha de un cuerpo con la aparición escalonada.
+   *
+   * Si el conocimiento del cuerpo aún no ha llegado, se pinta con lo del
+   * catálogo y se vuelve a pintar cuando llega —casi siempre en unas decenas
+   * de milisegundos, antes de que la escritura haya llegado a esa parte—.
+   */
   mostrar(cuerpo) {
     this.detener();
+    this.cuerpoMostrado = cuerpo;
     if (!cuerpo) return;
 
-    const lineas = this._componer(cuerpo);
+    const conocido = conocimientoEnMemoria(cuerpo.id);
+    this._pintar(cuerpo, conocido?.datos ?? null);
+    if (conocido === undefined) {
+      cargarConocimiento(cuerpo.id).then((llegado) => {
+        if (llegado?.datos?.length && this.cuerpoMostrado === cuerpo) this._pintar(cuerpo, llegado.datos);
+      });
+    }
+  }
+
+  _pintar(cuerpo, datos) {
+    this.detener();
+    const lineas = this._componer(cuerpo, datos);
     this.cuerpoTexto.replaceChildren();
     this.lineas = [];
 

@@ -251,6 +251,19 @@ if (!is_file($rutaConfig)) {
 // --------------------------------------------------------------------------
 comprobarEscritura('ajustes_panel', 'ajustes', false,
     'el panel de wj-admin no podrá guardar nada de lo que se escriba en él');
+comprobarEscritura('conocimiento_panel', 'conocimiento', false,
+    'la pestaña de conocimiento no podrá guardar narraciones ni datos nuevos');
+
+// Analytics: solo si está activo, que es lo que se pregunta al ver datos raros
+// en GA4. Nunca el ID ni el secreto: el diagnóstico es público.
+require_once __DIR__ . '/../lib/Analitica.php';
+comprobar(
+    'analitica', 'Google Analytics',
+    'ok',
+    Analitica::activa()
+        ? 'activo: los eventos se envían desde el servidor (Measurement Protocol)'
+        : 'inactivo: no se mide nada'
+);
 
 // --------------------------------------------------------------------------
 // 6. Datos maestros

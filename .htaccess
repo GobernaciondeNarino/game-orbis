@@ -139,7 +139,7 @@ DirectoryIndex index.html index.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule ^wj-includes/(lib|vendor)/ - [F,L]
-  RewriteRule ^wj-content/(cache|logs|ajustes)/ - [F,L]
+  RewriteRule ^wj-content/(cache|logs|ajustes|conocimiento)/ - [F,L]
   RewriteRule ^(tools|docs/borradores)/ - [F,L]
   # Herramientas del asistente de desarrollo, no del sitio. .claude/ trae las
   # skills vendorizadas —scripts, datos y su configuración— y graphify-out/ es

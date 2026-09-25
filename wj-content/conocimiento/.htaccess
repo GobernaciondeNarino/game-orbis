@@ -1,0 +1,9 @@
+# La capa de conocimiento que se edita desde wj-admin: narraciones y datos de
+# cada cuerpo. No es secreta —lo que se publica se sirve por api/conocimiento.php—
+# pero aquí también están las entradas retiradas y los originales corregidos, y
+# eso no tiene por qué verlo nadie. Lo lee PHP; por HTTP no se sirve nunca.
+Require all denied
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

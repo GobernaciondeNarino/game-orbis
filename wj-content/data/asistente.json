@@ -154,6 +154,23 @@
         }
       }
     },
+    "dato": {
+      "descripcion": "Entradilla del dato suelto que se dice al terminar una narración. El dato sale del conocimiento del cuerpo —catálogo más lo añadido desde el panel— y lleva su fuente; la entradilla solo lo anuncia, no informa.",
+      "conNombre": [
+        "Un dato más, {nombre}.",
+        "Y algo que quizá no sabías, {nombre}.",
+        "Otra cosa que vale la pena saber, {nombre}.",
+        "Ahora, un detalle, {nombre}.",
+        "Y una cosa más, {nombre}."
+      ],
+      "sinNombre": [
+        "Un dato más.",
+        "Y algo que quizá no sabías.",
+        "Otra cosa que vale la pena saber.",
+        "Ahora, un detalle.",
+        "Y una cosa más."
+      ]
+    },
     "sin-respuesta": {
       "descripcion": "Cuando se pregunta algo que el catálogo no responde. Decir que no se sabe es parte del trato.",
       "conNombre": [

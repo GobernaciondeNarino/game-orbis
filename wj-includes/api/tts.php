@@ -36,14 +36,16 @@
 
 declare(strict_types=1);
 
-/** Formato del audio que se pide a ElevenLabs. Es el mismo que trae la caché. */
-const FORMATO_AUDIO = 'mp3_44100_128';
+// El formato del audio (mp3_44100_128) y los ajustes de voz están en
+// lib/ElevenLabs.php, junto a la llamada que los usa.
 
 require_once __DIR__ . '/../lib/Config.php';
+require_once __DIR__ . '/../lib/ElevenLabs.php';
 require_once __DIR__ . '/../lib/Respuesta.php';
 require_once __DIR__ . '/../lib/Cache.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/Catalogo.php';
+require_once __DIR__ . '/../lib/Conocimiento.php';
 require_once __DIR__ . '/../lib/Asistente.php';
 require_once __DIR__ . '/../lib/Respuestas.php';
 require_once __DIR__ . '/../lib/Meteoros.php';
@@ -66,6 +68,8 @@ if ($metodo === 'GET') {
         'variante' => $_GET['variante'] ?? 0,
         'respuesta' => $_GET['respuesta'] ?? null,
         'cuerpo' => $_GET['cuerpo'] ?? null,
+        'narracion' => $_GET['narracion'] ?? null,
+        'dato' => $_GET['dato'] ?? null,
         'soloCache' => isset($_GET['soloCache']) && $_GET['soloCache'] === '1',
     ];
 } elseif ($metodo === 'POST') {
@@ -195,13 +199,34 @@ if ($meteoros !== '') {
         Respuesta::error(400, 'id_invalido', 'El identificador del cuerpo no tiene un formato válido.');
     }
 
-    $texto = Catalogo::narracion($bodyId, $variante);
+    // La narración sale del CONOCIMIENTO del cuerpo —las del catálogo más las
+    // añadidas desde el panel—, y se pide por su huella: si la lista cambia
+    // mientras alguien navega, una posición apuntaría a otro texto y el audio
+    // dejaría de cuadrar con los subtítulos. La huella solo encuentra textos
+    // que ya están en el conocimiento de ESE cuerpo; una inventada, nada. Lo
+    // mismo con los datos sueltos que se dicen tras la narración.
+    $huellaNarracion = isset($peticion['narracion']) ? (string) $peticion['narracion'] : '';
+    $huellaDato = isset($peticion['dato']) ? (string) $peticion['dato'] : '';
+
+    if ($huellaDato !== '') {
+        $texto = Conocimiento::porHuella($bodyId, $huellaDato, 'dato');
+        $sufijo = 'dato-' . $huellaDato;
+    } elseif ($huellaNarracion !== '') {
+        $texto = Conocimiento::porHuella($bodyId, $huellaNarracion, 'narracion');
+        $sufijo = 'narracion-' . $huellaNarracion;
+    } else {
+        // Por posición, para clientes que aún no mandan la huella.
+        $lista = Conocimiento::narraciones($bodyId);
+        $texto = $lista === [] ? null : $lista[(($variante % count($lista)) + count($lista)) % count($lista)];
+        $sufijo = 'narracion-' . $variante;
+    }
+
     if ($texto === null) {
         Respuesta::error(
             404,
             'cuerpo_desconocido',
             'No hay narración registrada para ese cuerpo.',
-            'bodyId solicitado: ' . $bodyId
+            'bodyId solicitado: ' . $bodyId . ' (' . $sufijo . ')'
         );
     }
 }
@@ -223,10 +248,9 @@ if (mb_strlen($texto) > $LIMITE_CARACTERES) {
 //    El cliente puede pedir una voz concreta, pero solo de una lista blanca:
 //    un voiceId libre permitiría usar voces de pago ajenas al proyecto.
 //
-//    VOZ_ORBIS es un identificador público de ElevenLabs, no una credencial:
-//    sin la clave de API no sirve para nada, así que puede ir en el repositorio.
-//    Se puede sustituir sin tocar el código con la variable de entorno
-//    ELEVENLABS_VOICE_ID o con config/secrets.php.
+//    La voz es un identificador público de ElevenLabs, no una credencial: sin
+//    la clave de API no sirve para nada. Se cambia desde el panel de wj-admin,
+//    con la variable de entorno ELEVENLABS_VOICE_ID o con wj-config.php.
 // ---------------------------------------------------------------------------
 $vozPredeterminada = Config::obtener('ELEVENLABS_VOICE_ID', Config::VOZ_PREDETERMINADA);
 $modelo = Config::obtener('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2');
@@ -315,96 +339,39 @@ if (!$cupo['permitido']) {
 
 // ---------------------------------------------------------------------------
 // 6. Llamada a ElevenLabs
+//    La síntesis y la lectura de sus errores viven en lib/ElevenLabs.php: eran
+//    la misma llamada copiada aquí, en el probador del panel y en el
+//    diagnóstico, con los mismos ajustes de voz que tenían que coincidir.
 // ---------------------------------------------------------------------------
 if (!extension_loaded('curl')) {
     Respuesta::error(503, 'sin_curl', 'El servidor no puede realizar la síntesis de voz.', 'extensión curl ausente');
 }
 
-$carga = json_encode([
-    'text' => $texto,
-    'model_id' => $modelo,
-    'voice_settings' => [
-        'stability' => 0.42,
-        'similarity_boost' => 0.78,
-        'style' => 0.15,
-        'use_speaker_boost' => true,
-    ],
-], JSON_UNESCAPED_UNICODE);
+$sintesis = ElevenLabs::sintetizar($texto, $voz, (string) $modelo);
 
-// `output_format` explícito, como en el cookbook de ElevenLabs. Da la casualidad
-// de que mp3_44100_128 es también lo que la API devuelve por omisión, así que
-// esto no cambia el audio de hoy; lo que quita es la dependencia de un valor
-// por omisión de otro, que puede cambiar sin avisar y dejaría la caché con dos
-// formatos mezclados bajo la misma clave.
-$ch = curl_init(
-    'https://api.elevenlabs.io/v1/text-to-speech/' . rawurlencode($voz)
-    . '?output_format=' . rawurlencode(FORMATO_AUDIO)
-);
-curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => $carga,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT => 45,
-    CURLOPT_CONNECTTIMEOUT => 10,
-    // Verificación TLS obligatoria: sin ella, la clave de API viajaría por un
-    // canal que se podría interceptar.
-    CURLOPT_SSL_VERIFYPEER => true,
-    CURLOPT_SSL_VERIFYHOST => 2,
-    CURLOPT_HTTPHEADER => [
-        'xi-api-key: ' . $clave,
-        'Content-Type: application/json',
-        'Accept: audio/mpeg',
-    ],
-]);
-
-$respuesta = curl_exec($ch);
-$codigo = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-$tipo = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-$errorCurl = curl_error($ch);
-curl_close($ch);
-
-if ($respuesta === false || $codigo === 0) {
-    Respuesta::error(
-        502,
-        'sin_conexion',
-        'No se pudo contactar con el servicio de voz. Se usará la voz del navegador.',
-        'curl: ' . $errorCurl
-    );
-}
-
-if ($codigo !== 200 || strpos($tipo, 'audio') === false) {
+if (!$sintesis['ok']) {
     // Un 401 tiene DOS causas muy distintas y el remedio no se parece en nada:
-    // o la clave no vale, o vale pero le falta un permiso. ElevenLabs deja
-    // crear claves con permisos sueltos, y una que puede leer la lista de voces
-    // pero no sintetizar pasa todas las comprobaciones de conectividad y falla
-    // solo al narrar. Distinguirlo aquí ahorra buscar el problema en el sitio
-    // equivocado durante horas.
-    $detalle = json_decode((string) $respuesta, true);
-    $estado = $detalle['detail']['status'] ?? '';
-    $mensajeApi = (string) ($detalle['detail']['message'] ?? '');
-
-    if ($codigo === 401 && ($estado === 'missing_permissions' || stripos($mensajeApi, 'permission') !== false)) {
-        Respuesta::error(
-            502,
-            'clave_sin_permiso',
-            'La clave de voz configurada no tiene permiso para sintetizar. Se usará la voz del '
-                . 'navegador. En el panel de ElevenLabs, activa el permiso «text_to_speech» de esa '
-                . 'clave, o genera otra que lo tenga.',
-            'HTTP 401 missing_permissions — ' . substr($mensajeApi, 0, 200)
-        );
-    }
-
-    // La respuesta cruda del tercero NO se devuelve: puede contener detalles de
-    // la cuenta. Va al registro, recortada.
+    // o la clave no vale, o vale pero le falta un permiso. Distinguirlo aquí
+    // ahorra buscar el problema en el sitio equivocado durante horas. La
+    // respuesta cruda del tercero NO se devuelve: va al registro, recortada.
+    $mensajes = [
+        'sin_conexion'      => 'No se pudo contactar con el servicio de voz. Se usará la voz del navegador.',
+        'clave_sin_permiso' => 'La clave de voz configurada no tiene permiso para sintetizar. Se usará la voz del '
+            . 'navegador. En el panel de ElevenLabs, activa el permiso «text_to_speech» de esa '
+            . 'clave, o genera otra que lo tenga.',
+        'clave_invalida'    => 'La clave de voz configurada no es válida. Se usará la voz del navegador.',
+        'voz_desconocida'   => 'La voz configurada no existe en la cuenta de ElevenLabs. Se usará la voz del navegador.',
+        'error_sintesis'    => 'El servicio de voz devolvió un error. Se usará la voz del navegador.',
+    ];
     Respuesta::error(
         502,
-        $codigo === 401 ? 'clave_invalida' : 'error_sintesis',
-        $codigo === 401
-            ? 'La clave de voz configurada no es válida. Se usará la voz del navegador.'
-            : 'El servicio de voz devolvió un error. Se usará la voz del navegador.',
-        'HTTP ' . $codigo . ' tipo ' . $tipo . ' — ' . substr((string) $respuesta, 0, 300)
+        $sintesis['error'],
+        $mensajes[$sintesis['error']] ?? $mensajes['error_sintesis'],
+        'HTTP ' . $sintesis['codigo'] . ' — ' . $sintesis['detalle']
     );
 }
+
+$respuesta = $sintesis['audio'];
 
 // ---------------------------------------------------------------------------
 // 7. Guardar y servir

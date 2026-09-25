@@ -321,3 +321,303 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .boton { transition: none; }
 }
+
+/* ==========================================================================
+   PESTAÑAS Y FICHAS (versión con pestañas del panel)
+   ========================================================================== */
+
+/* Enlace para saltar la navegación: el primero que alcanza el tabulador. */
+.saltar {
+  position: absolute;
+  left: var(--e-3);
+  top: -60px;
+  padding: var(--e-2) var(--e-3);
+  background: var(--fondo-medio);
+  border: 1px solid var(--panel-borde-vivo);
+  color: var(--texto);
+  z-index: 10;
+}
+.saltar:focus { top: var(--e-3); }
+
+.titulo-pestana {
+  font-family: var(--fuente-titulos);
+  font-size: var(--t-titulo);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--texto);
+}
+
+/* --- Pestañas ---------------------------------------------------------------
+   Enlaces, no botones: cada pestaña es una URL que se puede recargar, enlazar y
+   recuperar con «atrás». En un teléfono no caben las cinco: la fila se desplaza
+   en horizontal en lugar de partirse en dos, que es donde se pierde cuál está
+   activa. La activa se marca con color Y con subrayado: el color solo no llega
+   a quien no distingue el cian del gris. */
+.pestanas {
+  border-bottom: 1px solid var(--panel-borde);
+  padding: 0 var(--e-5);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.pestanas__lista,
+.subpestanas__lista {
+  display: flex;
+  gap: var(--e-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+.pestanas__una,
+.subpestanas__una {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--e-4);
+  font-family: var(--fuente-titulos);
+  font-size: var(--t-menor);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color var(--dur-corta) var(--curva), border-color var(--dur-corta) var(--curva);
+}
+.pestanas__una:hover,
+.subpestanas__una:hover { color: var(--texto); }
+.pestanas__una--activa,
+.subpestanas__una--activa {
+  color: var(--cian-brillante);
+  border-bottom-color: var(--cian-brillante);
+}
+.pestanas__una:focus-visible,
+.subpestanas__una:focus-visible { outline: 2px solid var(--cian-brillante); outline-offset: -2px; }
+
+.subpestanas {
+  overflow-x: auto;
+  border-bottom: 1px solid var(--panel-borde);
+}
+.subpestanas__una { min-height: 40px; }
+
+/* --- Cuerpos de una categoría: fichas cortas, agrupadas ------------------- */
+.cuerpos {
+  display: grid;
+  gap: var(--e-2);
+}
+.cuerpos__grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-2);
+}
+.cuerpos__padre {
+  min-width: 6.5em;
+  font-family: var(--fuente-titulos);
+  font-size: var(--t-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texto-apagado);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--e-2);
+  border: 1px solid var(--panel-borde);
+  font-family: var(--fuente-titulos);
+  font-size: var(--t-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+}
+.chip--enlace {
+  min-height: 36px;
+  padding: 0 var(--e-3);
+  text-decoration: none;
+  color: var(--texto);
+}
+.chip--enlace:hover { border-color: var(--panel-borde-vivo); }
+.chip--enlace:focus-visible { outline: 2px solid var(--cian-brillante); outline-offset: 1px; }
+.chip--activo { border-color: var(--cian-brillante); color: var(--cian-brillante); }
+.chip--catalogo { color: var(--cian-acento); }
+.chip--panel { color: var(--verde-estado); border-color: currentColor; }
+.chip--retirada { color: var(--rojo-alerta); border-color: currentColor; }
+.chip--editada { color: var(--ambar-seleccion); border-color: currentColor; }
+
+/* --- Pie de tarjeta: guardar y verificar juntos --------------------------- */
+.tarjeta__pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  align-items: center;
+  margin-top: var(--e-2);
+}
+.boton--secundario {
+  background: none;
+  border-color: var(--cian-acento);
+}
+.boton--peligro {
+  background: none;
+  border-color: var(--rojo-alerta);
+  color: var(--rojo-alerta);
+  min-height: 32px;
+}
+.boton--peligro:hover { background: rgba(255, 82, 82, 0.12); }
+
+/* --- Resultado de una verificación --------------------------------------- */
+.verificacion {
+  border: 1px solid var(--panel-borde);
+  border-left-width: 3px;
+  padding: var(--e-3);
+  display: grid;
+  gap: var(--e-2);
+}
+.verificacion--ok { border-left-color: var(--verde-estado); }
+.verificacion--aviso { border-left-color: var(--ambar-seleccion); }
+.verificacion--error { border-left-color: var(--rojo-alerta); }
+.verificacion__titulo {
+  font-family: var(--fuente-titulos);
+  font-size: var(--t-menor);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texto);
+}
+.verificacion__fecha { color: var(--texto-apagado); text-transform: none; letter-spacing: 0; }
+.verificacion__lista { display: grid; gap: var(--e-2); margin: 0; padding: 0; list-style: none; }
+.verificacion__una {
+  display: grid;
+  grid-template-columns: 1.2em minmax(0, 9em) minmax(0, 1fr);
+  gap: var(--e-2);
+  font-size: var(--t-menor);
+  align-items: baseline;
+}
+.verificacion__marca { font-weight: 700; text-align: center; }
+.verificacion__una--ok .verificacion__marca { color: var(--verde-estado); }
+.verificacion__una--aviso .verificacion__marca { color: var(--ambar-seleccion); }
+.verificacion__una--error .verificacion__marca { color: var(--rojo-alerta); }
+.verificacion__que { color: var(--texto-tenue); }
+.verificacion__nota { color: var(--texto); }
+
+/* --- Lista de estados (inicio, analítica) --------------------------------- */
+.servicios { display: grid; gap: var(--e-2); margin: 0; padding: 0; list-style: none; }
+.servicios__uno {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--e-2);
+  padding: var(--e-2) var(--e-3);
+  border-left: 3px solid var(--panel-borde);
+  background: rgba(5, 11, 24, 0.4);
+}
+.servicios__uno--ok { border-left-color: var(--verde-estado); }
+.servicios__uno--aviso { border-left-color: var(--ambar-seleccion); }
+.servicios__uno--error { border-left-color: var(--rojo-alerta); }
+.servicios__nombre { color: var(--texto); font-weight: 600; }
+a.servicios__nombre { color: var(--cian-acento); }
+.servicios__estado { color: var(--texto-tenue); font-size: var(--t-menor); }
+
+/* --- Entradas de conocimiento --------------------------------------------- */
+.entrada {
+  display: grid;
+  gap: var(--e-3);
+  padding: var(--e-3);
+  border: 1px solid var(--panel-borde);
+  background: rgba(5, 11, 24, 0.35);
+  scroll-margin-top: var(--e-5);
+}
+.entrada--retirada { opacity: 0.7; border-style: dashed; }
+.entrada--nueva { border-color: var(--verde-estado); }
+.entrada--ia { border-color: var(--cian-acento); border-style: dashed; }
+.entrada__titulo {
+  font-family: var(--fuente-titulos);
+  font-size: var(--t-menor);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texto);
+}
+.entrada__meta { display: flex; flex-wrap: wrap; gap: var(--e-1); }
+.entrada__fila {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--e-3);
+}
+.entrada__acciones { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.entrada textarea,
+.campo textarea {
+  min-height: 44px;
+  padding: var(--e-2) var(--e-3);
+  background: rgba(5, 11, 24, 0.6);
+  border: 1px solid var(--panel-borde);
+  color: var(--texto);
+  font-family: var(--fuente-datos);
+  font-size: var(--t-base);
+  line-height: 1.55;
+  resize: vertical;
+}
+.campo textarea:focus-visible { outline: 2px solid var(--cian-brillante); outline-offset: 1px; }
+.campo input[type="url"] {
+  min-height: 44px;
+  padding: var(--e-2) var(--e-3);
+  background: rgba(5, 11, 24, 0.6);
+  border: 1px solid var(--panel-borde);
+  color: var(--texto);
+  font-family: var(--fuente-cifras);
+  font-size: var(--t-base);
+}
+.campo textarea[aria-invalid="true"],
+.campo select[aria-invalid="true"] { border-color: var(--rojo-alerta); }
+
+/* --- Avisos que no son errores -------------------------------------------- */
+.mensaje--aviso { border-color: rgba(232, 160, 32, 0.6); color: var(--texto); display: grid; gap: var(--e-2); }
+.mensaje--aviso strong { color: var(--ambar-seleccion); }
+.mensaje blockquote {
+  margin: 0;
+  padding-left: var(--e-3);
+  border-left: 2px solid var(--ambar-seleccion);
+  color: var(--texto-tenue);
+  font-style: italic;
+}
+.mensaje a { color: var(--cian-acento); }
+
+.lista-ayuda {
+  display: grid;
+  gap: var(--e-2);
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: var(--t-menor);
+  color: var(--texto-tenue);
+}
+.lista-ayuda code { font-family: var(--fuente-cifras); color: var(--cian-acento); }
+
+.desplegable summary {
+  cursor: pointer;
+  min-height: 32px;
+  font-size: var(--t-menor);
+  color: var(--cian-acento);
+}
+.desplegable[open] summary { margin-bottom: var(--e-2); }
+
+.casilla--grande { font-size: var(--t-base); color: var(--texto); align-items: flex-start; }
+.casilla--grande input { margin-top: 2px; flex: none; }
+
+.voces__una--actual .voces__nombre { color: var(--cian-brillante); }
+
+@media (max-width: 600px) {
+  /* En un teléfono, una fila que se desplaza esconde lo que queda a la
+     derecha: nadie adivina que detrás de «Planetas» están «Lunas» y
+     «Cinturones». Son pocas y cortas, así que saltan de línea y se ven todas. */
+  .pestanas { padding: 0 var(--e-3); overflow-x: visible; }
+  .pestanas__lista,
+  .subpestanas__lista { flex-wrap: wrap; white-space: normal; }
+  .subpestanas { overflow-x: visible; }
+  .pestanas__una,
+  .subpestanas__una { padding: 0 var(--e-3); }
+  .verificacion__una { grid-template-columns: 1.2em minmax(0, 1fr); }
+  .verificacion__nota { grid-column: 2; }
+  .cuerpos__padre { min-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pestanas__una, .subpestanas__una { transition: none; }
+}

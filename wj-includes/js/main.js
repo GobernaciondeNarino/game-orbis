@@ -34,6 +34,7 @@ import { VoiceCommands } from './input/VoiceCommands.js';
 import { $, crear, anunciar } from './utils/dom.js';
 import { RAIZ, rutaApi, rutaApp, rutaDatos } from './utils/rutas.js';
 import { depuracion, log, error } from './utils/debug.js';
+import { iniciarAnalitica, medir } from './utils/analitica.js';
 
 const relleno = $('#arranque-relleno');
 const detalle = $('#arranque-detalle');
@@ -316,6 +317,18 @@ async function arrancar() {
     resultados.backend?.extra ?? null,
   );
 
+  // ------------------------------------------------------------- medición --
+  // Qué pasa, nunca quién: sin cookies, sin script de Google y con los
+  // identificadores solo en memoria (ver utils/analitica.js). Se engancha a los
+  // eventos que la aplicación ya emite, para que medir no se meta en la lógica.
+  iniciarAnalitica();
+  App.al('cuerpo:seleccionado', ({ id }) => medir('ver_cuerpo', { cuerpo: id }));
+  App.al('narracion:inicio', ({ id, motor }) => medir('narracion', { cuerpo: id, motor }));
+  App.al('voz:activa', ({ motor }) => medir('usar_voz', { motor }));
+  App.al('manos:activa', () => medir('usar_gestos'));
+  App.al('escena:escala', ({ modo }) => medir('cambiar_escala', { modo }));
+  App.al('hud:seccion', ({ id }) => medir('cambiar_seccion', { seccion: id }));
+
   // ------------------------------------------------------- control por manos --
   // Se construye siempre, pero no toca la cámara hasta que el usuario la
   // enciende explícitamente. Es una capa que se suma a ratón y teclado, nunca
@@ -466,6 +479,7 @@ async function arrancar() {
 
     const datos = await narrador?.responder(pregunta.cuerpo, pregunta.atributo);
     if (!datos) return false;
+    medir('preguntar', { via: 'catalogo', cuerpo: pregunta.cuerpo });
 
     hud.mostrarRespuesta({
       ...datos,
@@ -535,6 +549,9 @@ async function arrancar() {
     }
 
     if (!datos?.texto) return { texto: null, motivo: 'El asistente no ha devuelto respuesta.' };
+    medir('preguntar', App.estado.cuerpoActivo
+      ? { via: 'conversacion', cuerpo: App.estado.cuerpoActivo }
+      : { via: 'conversacion' });
 
     for (const accion of datos.acciones ?? []) {
       if (accion.tipo === 'mostrar' && accion.cuerpo) seleccionar(accion.cuerpo, 'asistente');
