@@ -141,6 +141,11 @@ DirectoryIndex index.html index.php
   RewriteRule ^wj-includes/(lib|vendor)/ - [F,L]
   RewriteRule ^wj-content/(cache|logs|ajustes)/ - [F,L]
   RewriteRule ^(tools|docs/borradores)/ - [F,L]
+  # Herramientas del asistente de desarrollo, no del sitio. .claude/ trae las
+  # skills vendorizadas —scripts, datos y su configuración— y graphify-out/ es
+  # el mapa completo del código que genera Graphify: todo eso viajaba con el
+  # «git pull» y se podía descargar por su ruta.
+  RewriteRule ^(\.claude|\.git|graphify-out)(/|$) - [F,L]
 </IfModule>
 
 # wj-config.php son LAS CLAVES. Se deniega por nombre, esté donde esté: en la

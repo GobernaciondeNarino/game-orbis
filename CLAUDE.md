@@ -80,6 +80,27 @@ Están en `wj-includes/css/nucleo.css`. Usa siempre las variables, nunca un colo
 La skill `ui-ux-pro-max` está vendorizada en `.claude/skills/` y debe usarse
 para cualquier decisión de diseño de la HUD.
 
+## Grafo de conocimiento del código (Graphify)
+
+La skill `graphify` está en `.claude/skills/graphify/`. Convierte el proyecto en
+un grafo consultable en `graphify-out/` (no versionado). La primera vez que se
+usa en una sesión instala el CLI sola (`uv tool install graphifyy`).
+
+```bash
+graphify update .                      # reconstruye el grafo del código, sin LLM ni coste
+graphify query "¿qué lee la narración?"   # subgrafo acotado para una pregunta
+graphify path "HUD" "Narrador"            # cómo se conectan dos piezas
+graphify explain "SceneManager"           # una pieza y sus vecinas
+```
+
+`.graphifyignore` deja fuera el código de terceros: el grafo es de ORBIS.
+
+**No se instalan sus hooks `PreToolUse`** (`graphify claude install`), a
+propósito: interceptan cada `Read`, `Grep` y `Bash`, y en un contenedor nuevo,
+sin el CLI instalado todavía, cada llamada ejecutaría un comando inexistente
+con diez segundos de espera. La skill se invoca con `/graphify` cuando hace
+falta, y ya está.
+
 ## Estado
 
 Las nueve fases completadas. Queda por comprobar a mano, y no se puede hacer

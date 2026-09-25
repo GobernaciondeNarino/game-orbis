@@ -1,0 +1,26 @@
+# Qué NO entra en el grafo de conocimiento de Graphify (/graphify).
+#
+# El grafo tiene que ser de ORBIS, no de sus dependencias. Sin esto, los más de
+# dos mil archivos del SDK de Anthropic y las copias de three.js y MediaPipe se
+# comen el grafo: los «nodos dios» serían funciones de terceros y las
+# comunidades, paquetes que nadie de este proyecto ha escrito.
+#
+# Mismo formato que .gitignore, y lo que ya excluye .gitignore no hace falta
+# repetirlo aquí.
+
+# Código de terceros, copiado tal cual
+wj-includes/vendor/
+wj-includes/externos/
+
+# Binarios y medios: texturas, fuentes, modelos de MediaPipe
+wj-content/assets/
+
+# Lo que el sitio genera solo
+wj-content/cache/
+wj-content/logs/
+
+# Las skills vendorizadas son herramientas del asistente, no del proyecto
+.claude/
+
+# La propia salida del grafo
+graphify-out/

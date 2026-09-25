@@ -48,6 +48,10 @@ wj-content/assets/skybox/*
 # es exactamente el fallo que dejó la primera versión sin funcionar.
 # Se descarga y actualiza con: node tools/vendor.mjs mediapipe
 
+# El grafo de Graphify (/graphify): se regenera con «graphify update .» y se
+# queda viejo en cuanto cambia el código. Versionarlo sería guardar una foto.
+graphify-out/
+
 # Sistema operativo / editores
 .DS_Store
 Thumbs.db
