@@ -44,14 +44,9 @@ require_once __DIR__ . '/../wj-includes/lib/RateLimiter.php';
 require_once __DIR__ . '/../wj-includes/lib/Respuesta.php';
 require_once __DIR__ . '/../wj-includes/lib/ElevenLabs.php';
 
-/**
- * La frase de prueba.
- *
- * Lleva números, un nombre propio y una cifra con separador porque es donde se
- * nota si una voz sirve para ORBIS: leer «1.391.400 kilómetros» en español es
- * exactamente lo que va a tener que hacer todo el día.
- */
-const FRASE = 'Esto es el Sol. Su diámetro es de 1.391.400 kilómetros, unas ciento nueve veces el de la Tierra.';
+// La frase de prueba vive en ElevenLabs.php: la verificación de la pestaña
+// APIs usa la misma, y así el audio que sintetiza una lo sirve la otra.
+const FRASE = ElevenLabs::FRASE_PRUEBA;
 
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');

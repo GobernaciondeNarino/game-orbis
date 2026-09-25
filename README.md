@@ -56,7 +56,7 @@ Comprobación del backend: <http://localhost:8080/api/health.php>
 
 | Dependencia | Versión | Por qué esa |
 |---|---|---|
-| **Three.js** | `r0.184.0` | Es la última versión cuya superficie de API está verificada contra este código. `WebGLRenderer`, `EffectComposer`, `UnrealBloomPass`, `OutputPass`, `Lensflare` y `CSS2DRenderer` se comportan como espera ORBIS. Se descarta la rama r0.185, publicada después, para no arrastrar cambios de API no verificados a mitad de proyecto. La compilación minificada pesa **356 kB** (≈90 kB con Brotli). |
+| **Three.js** | `r0.184.0` | Es la última versión cuya superficie de API está verificada contra este código. `WebGLRenderer`, `EffectComposer`, `UnrealBloomPass`, `OutputPass` y `CSS2DRenderer` se comportan como espera ORBIS. Se descarta la rama r0.185, publicada después, para no arrastrar cambios de API no verificados a mitad de proyecto. La compilación minificada pesa **356 kB** (≈90 kB con Brotli). |
 | **MediaPipe Tasks Vision** | `0.10.35` | Última de la línea `0.10.x`, la que usa la API `FilesetResolver.forVisionTasks()` + `HandLandmarker.createFromOptions()` documentada y estable. La línea `1.0.x` es posterior y reestructura el paquete; migrar a ella es trabajo de la fase 6, no una suposición de partida. |
 | **PHP** | `8.1+` | El código de `api/` se escribe en sintaxis compatible con 7.4 para que funcione también en instalaciones de Plesk sin migrar, pero solo se da soporte a 8.1+. Ver `docs/DESPLIEGUE-PLESK.md`. |
 

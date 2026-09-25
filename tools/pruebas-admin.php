@@ -406,6 +406,39 @@ echo "\n▸ El panel no devuelve nunca una clave guardada\n";
     comprobar('y hay una casilla explícita para borrarlas', strpos($panel, 'name="borrar[') !== false, true);
 }
 
+echo "\n▸ Toda constante de clase que se usa existe\n";
+{
+    // PHP no lo comprueba al cargar el archivo: una constante que no existe es
+    // un error fatal en el momento de usarla. Así se escapó
+    // «ElevenLabs::FRASE_PRUEBA», que solo se leía en el paso de síntesis de la
+    // verificación, justo el que no se ejercita sin red. Se busca en todo el
+    // PHP del servidor cualquier «Clase::CONSTANTE» de una clase de
+    // wj-includes/lib y se comprueba que está definida.
+    $archivos = [];
+    foreach (['wj-includes', 'wj-admin'] as $raiz) {
+        $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__ . "/../$raiz", FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $f) {
+            if ($f->getExtension() === 'php') $archivos[] = $f->getPathname();
+        }
+    }
+    $usadas = [];
+    foreach ($archivos as $archivo) {
+        preg_match_all('/\b([A-Z][A-Za-z]+)::([A-Z][A-Z0-9_]+)\b/', (string) file_get_contents($archivo), $m, PREG_SET_ORDER);
+        foreach ($m as [, $clase, $constante]) {
+            if (!is_file(__DIR__ . "/../wj-includes/lib/$clase.php")) continue;
+            $usadas["$clase::$constante"] = basename($archivo);
+        }
+    }
+    $faltan = [];
+    foreach ($usadas as $nombre => $donde) {
+        [$clase] = explode('::', $nombre);
+        require_once __DIR__ . "/../wj-includes/lib/$clase.php";
+        if (!defined($nombre)) $faltan[] = "$nombre (en $donde)";
+    }
+    comprobar('se han encontrado usos que revisar (' . count($usadas) . ')', count($usadas) >= 8, true);
+    comprobar('ninguna falta' . ($faltan ? ': ' . implode(', ', $faltan) : ''), $faltan, []);
+}
+
 // Se devuelve el archivo del servidor tal y como estaba.
 @unlink($ruta);
 if ($respaldo !== null) {

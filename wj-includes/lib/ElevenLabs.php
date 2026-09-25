@@ -38,6 +38,17 @@ final class ElevenLabs
     const MODELO_PREDETERMINADO = 'eleven_multilingual_v2';
 
     /**
+     * La frase de prueba, la del probador del panel y la de la verificación.
+     *
+     * Lleva números, un nombre propio y una cifra con separador porque es donde
+     * se nota si una voz sirve para ORBIS: leer «1.391.400 kilómetros» en
+     * español es exactamente lo que va a tener que hacer todo el día. Es una
+     * sola para que las dos compartan la entrada de la caché: lo que sintetiza
+     * la verificación lo reproduce el probador sin volver a pagarlo.
+     */
+    const FRASE_PRUEBA = 'Esto es el Sol. Su diámetro es de 1.391.400 kilómetros, unas ciento nueve veces el de la Tierra.';
+
+    /**
      * Ajustes de voz de TODA la narración.
      *
      * Estabilidad algo por debajo de la mitad para que la voz no suene leída,

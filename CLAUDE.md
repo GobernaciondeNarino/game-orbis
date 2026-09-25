@@ -51,7 +51,9 @@ node tools/pruebas-narracion.mjs           # las tres narraciones de cada cuerpo
 php  tools/pruebas-asistente.php           # validación del nombre y frases
 node tools/pruebas-preguntas.mjs           # reconocedor de preguntas
 node tools/pruebas-datos.mjs               # coherencia del catálogo (masa vs d×V)
-node tools/pruebas-sol.mjs                 # flujo del plasma en la superficie
+node tools/pruebas-sol.mjs                 # flujo del plasma, granulación y destello del Sol
+node tools/pruebas-galaxia.mjs             # Vía Láctea: medidas con fuente, brazos, escala real
+node tools/pruebas-cuerpos.mjs             # atmósferas, relieve, anillos, forma triaxial, marea
 node tools/pruebas-interfaz.mjs            # mandos, espejo de la cámara y hoja de comandos
 php  tools/pruebas-horizons.php            # parseo de las tablas de JPL (sin red)
 php  tools/pruebas-conversacion.php        # herramientas del asistente (sin red)
@@ -62,7 +64,7 @@ php  tools/pruebas-meteoros.php            # calendario de lluvias de meteoros
 php  tools/pruebas-conocimiento.php        # conocimiento con fuente, huellas, Gemini fuera de lo público, Analytics
 node tools/pruebas-voz.mjs                 # parser de intenciones de voz
 node tools/csp-hash.mjs --verificar        # hash CSP del importmap al día
-find api config -name '*.php' -exec php -l {} \;
+find wj-includes wj-admin tools -name '*.php' -exec php -l {} \; | grep -v '^No syntax'
 php -S localhost:8080                      # y abrir http://localhost:8080
 ```
 

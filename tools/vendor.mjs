@@ -31,7 +31,6 @@ const ADDONS = [
   'postprocessing/UnrealBloomPass.js',
   'postprocessing/OutputPass.js',
   'postprocessing/ShaderPass.js',
-  'objects/Lensflare.js',
   'renderers/CSS2DRenderer.js',
   'libs/stats.module.js',
 ];
